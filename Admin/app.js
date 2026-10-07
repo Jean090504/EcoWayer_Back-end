@@ -19,6 +19,9 @@ app.use(cors(corsOptions))
 
 const administradorRouter = require('./routes/administrador.routes.js')   // Rotas Responsaveis pela gerencia de ADMIN
 app.use('/meraki/ecowayer/admin/gerenciar', cors(corsOptions), administradorRouter)
+
+const tipoCategoriaRouter = require('./routes/tipo_categoria.routes.js') // Rotas Responsaveis pela gerencia de TIPO CATEGORIA
+app.use('/v1/senai/locadora/tipo-categoria', cors(corsOptions), tipoCategoriaRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080

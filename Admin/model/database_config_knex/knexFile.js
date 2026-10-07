@@ -1,27 +1,50 @@
+const mysql = require('mysql2/promise');
+
+// Senhas candidatas (a do .env tem prioridade, se existir)
+const senhas = [process.env.DB_PASSWORD, 'bcd127', '12345678'].filter(Boolean);
+
+const baseConfig = {
+  host: 'localhost',
+  user: 'root',
+  database: 'ecowayer_db',
+  port: 3306,
+  charset: 'utf8mb4',
+};
+
+let configCache = null; // evita testar as senhas a cada nova conexão do pool
+
+async function conexaoComFallback() {
+  if (configCache) return configCache;
+
+  let ultimoErro;
+
+  for (const password of senhas) {
+    try {
+      const teste = await mysql.createConnection({ ...baseConfig, password });
+      await teste.end();
+
+      configCache = { ...baseConfig, password };
+      return configCache;
+    } catch (err) {
+      // só tenta a próxima se o erro for de senha errada
+      if (err.code !== 'ER_ACCESS_DENIED_ERROR') throw err;
+      ultimoErro = err;
+    }
+  }
+
+  throw ultimoErro; // nenhuma senha funcionou
+}
+
 module.exports = {
-    development: {
-      // ⚠️ ALTERAÇÃO: Define o cliente como 'mysql2'
-      client: 'mysql2',
-      connection: {
-        host: 'localhost',
-        user: 'root', // Substitua pelo seu usuário
-        password: '12345678', // Substitua pela sua senha
-        database: 'ecowayer_db',
-        port: 3306, // Porta padrão do MySQL
-       
-        // Opcional: Define charset (recomendado para UTF8)
-        charset: 'utf8mb4'
-      },
-     
-      // Configurações de Migração
-      migrations: {
-        tableName: 'knex_migrations', // Nome da tabela de migrações
-        directory: './db/migrations'
-      },
-      seeds: {
-        directory: './db/seeds'
-      }
+  development: {
+    client: 'mysql2',
+    connection: conexaoComFallback,
+    migrations: {
+      tableName: 'knex_migrations',
+      directory: './db/migrations',
     },
-   
-    // Você pode adicionar configurações para produção, testes, etc.
-  };
+    seeds: {
+      directory: './db/seeds',
+    },
+  },
+};
