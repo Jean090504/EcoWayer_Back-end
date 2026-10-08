@@ -22,6 +22,9 @@ app.use('/meraki/ecowayer/admin/gerenciar', cors(corsOptions), administradorRout
 
 const tipoCategoriaRouter = require('./routes/tipo_categoria.routes.js') // Rotas Responsaveis pela gerencia de TIPO CATEGORIA
 app.use('/v1/senai/locadora/tipo-categoria', cors(corsOptions), tipoCategoriaRouter)
+
+const categoriaRouter = require('./routes/categoria.routes.js')     // Rotas Responsaveis pela gerencia CATEGORIA
+app.use('/meraki/ecowayer/admin/categoria', cors(corsOptions), categoriaRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080
