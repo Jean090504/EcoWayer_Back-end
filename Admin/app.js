@@ -25,6 +25,9 @@ app.use('/v1/senai/locadora/tipo-categoria', cors(corsOptions), tipoCategoriaRou
 
 const categoriaRouter = require('./routes/categoria.routes.js')     // Rotas Responsaveis pela gerencia CATEGORIA
 app.use('/meraki/ecowayer/admin/categoria', cors(corsOptions), categoriaRouter)
+
+const enderecoRouter = require('./routes/endereco.routes.js')   // Rotas Responsaveis pelo endereço
+app.use('/meraki/ecowayer/admin/endereco', cors(corsOptions), enderecoRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080
