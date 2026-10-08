@@ -2,7 +2,7 @@
  *  Objetivo: Arquivo responsavel pela validação, tratamento e manipulação de dados
  *            para o CRUD de tipo de categoria
  *  Autor: Maxwillian Santana
- *  Versão: 1.0
+ *  Versão: 1.1
  **********************************************************************************************/
 
 const configMessages = require('../modulo/configMessages.js')
@@ -18,12 +18,16 @@ const inserirNovoTipoCategoria = async function (tipoCategoria, contentType) {
             if (validar) {
                 return validar // 400
             } else {
-                let result = await tipoCategoriaDAO.insertTipoCategoria(tipoCategoria)
+                let idInserido = await tipoCategoriaDAO.insertTipoCategoria(tipoCategoria)
 
-                if (result) {
+                if (idInserido) {
                     message.DEFAULT_MESSAGE.status = message.SUCCESS_CREATED_ITEM.status
                     message.DEFAULT_MESSAGE.status_code = message.SUCCESS_CREATED_ITEM.status_code
                     message.DEFAULT_MESSAGE.message = message.SUCCESS_CREATED_ITEM.message
+                    message.DEFAULT_MESSAGE.response = {
+                        id: idInserido,
+                        nome: tipoCategoria.nome
+                    }
 
                     return message.DEFAULT_MESSAGE // 201
                 } else {
@@ -50,7 +54,7 @@ const atualizarTipoCategoria = async function (tipoCategoria, id, contentType) {
                 let validar = await validarDados(tipoCategoria)
 
                 if (!validar) {
-                    tipoCategoria.id = id
+                    tipoCategoria.id = Number(id)
 
                     let result = await tipoCategoriaDAO.updateTipoCategoria(tipoCategoria)
 
@@ -58,7 +62,10 @@ const atualizarTipoCategoria = async function (tipoCategoria, id, contentType) {
                         message.DEFAULT_MESSAGE.status = message.SUCCESS_UPDETED_ITEM.status
                         message.DEFAULT_MESSAGE.status_code = message.SUCCESS_UPDETED_ITEM.status_code
                         message.DEFAULT_MESSAGE.message = message.SUCCESS_UPDETED_ITEM.message
-                        message.DEFAULT_MESSAGE.response = tipoCategoria
+                        message.DEFAULT_MESSAGE.response = {
+                            id: tipoCategoria.id,
+                            nome: tipoCategoria.nome
+                        }
 
                         return message.DEFAULT_MESSAGE // 200
                     } else {
@@ -143,7 +150,12 @@ const excluirTipoCategoria = async function (id) {
             let result = await tipoCategoriaDAO.deleteTipoCategoria(id)
 
             if (result) {
-                return message.SUCCESS_DELETED_ITEM // 200
+                message.DEFAULT_MESSAGE.status = message.SUCCESS_DELETED_ITEM.status
+                message.DEFAULT_MESSAGE.status_code = message.SUCCESS_DELETED_ITEM.status_code
+                message.DEFAULT_MESSAGE.message = message.SUCCESS_DELETED_ITEM.message
+                message.DEFAULT_MESSAGE.response = { id: Number(id) }
+
+                return message.DEFAULT_MESSAGE // 200
             } else {
                 return message.ERROR_INTERNAL_SEVER_MODEL // 500
             }

@@ -8,7 +8,7 @@
 //Padronizção de cabeçario para retorno dos endpoints da api
 const DEFAULT_MESSAGE = {
 
-    api_description: 'API para gerenciar o controle de Filmes',
+    api_description: 'API para gerenciar o controle do EcoWayer',
     development: 'Maxwillian Santana',
     version: '1.0.4.26',
     status: Boolean,

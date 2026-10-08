@@ -13,7 +13,11 @@ const insertTipoCategoria = async function (tipoCategoria) {
         let sql = `INSERT INTO tbl_tipo_categoria (nome) VALUES (?);`
         let result = await knexConex.raw(sql, [tipoCategoria.nome])
 
-        return result ? true : false
+        if (Array.isArray(result) && result[0].insertId) {
+            return result[0].insertId
+        } else {
+            return false
+        }
     } catch (error) {
         console.log(error)
         return false
