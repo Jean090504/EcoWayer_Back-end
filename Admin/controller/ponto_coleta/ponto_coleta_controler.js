@@ -2,12 +2,14 @@
  *  Objetivo: Arquivo responsavel pela validação, tratamento e manipulação de dados
  *            para o CRUD de ponto de coleta
  *  Autor: Maxwillian Santana
- *  Versão: 1.0
+ *  Versão: 1.1
  **********************************************************************************************/
 
 const configMessages = require('../modulo/configMessages.js')
 const pontoColetaDAO = require('../../model/DAO/ponto_coleta/ponto_coleta.js')
 const categoriaDAO = require('../../model/DAO/categoria/categoria.js')
+const enderecoDAO = require('../../model/DAO/endereco/endereco.js')
+const controlerEnderecoPontoColeta = require('./endereco_ponto_coleta_controler.js')
 
 // ATENÇÃO: troque pelos valores reais do ENUM da coluna status
 // (rode: SHOW COLUMNS FROM tbl_ponto_coleta LIKE 'status';)
@@ -20,6 +22,33 @@ const formatarPonto = function (ponto) {
         latitude: Number(ponto.latitude),
         longitude: Number(ponto.longitude)
     }
+}
+
+// Busca os endereços do ponto na tabela intermediária e anexa no objeto
+const anexarEnderecos = async function (ponto) {
+    let resultEnderecos = await controlerEnderecoPontoColeta.buscarEnderecosIdPontoColeta(ponto.id)
+
+    ponto.endereco = resultEnderecos.status ? resultEnderecos.response.endereco : []
+
+    return ponto
+}
+
+// Grava os vínculos do ponto com cada endereço da lista
+const inserirEnderecosDoPonto = async function (idPontoColeta, enderecos) {
+    for (let endereco of enderecos) {
+        let relacao = {
+            id_endereco: endereco.id,
+            id_ponto_coleta: idPontoColeta
+        }
+
+        let resultRelacao = await controlerEnderecoPontoColeta.inserirNovoEnderecoPontoColeta(relacao)
+
+        if (!resultRelacao.status) {
+            return false
+        }
+    }
+
+    return true
 }
 
 const inserirNovoPontoColeta = async function (ponto, contentType) {
@@ -37,14 +66,24 @@ const inserirNovoPontoColeta = async function (ponto, contentType) {
                 let idInserido = await pontoColetaDAO.insertPontoColeta(ponto)
 
                 if (idInserido) {
+                    // Tabela intermediária: vincula os endereços ao ponto recém criado
+                    let relacionou = await inserirEnderecosDoPonto(idInserido, ponto.endereco)
+
+                    if (!relacionou) {
+                        return message.SUCCESS_CREATED_WARNING // 201 com alerta de dados não inseridos
+                    }
+
                     let criado = await pontoColetaDAO.selectByIdPontoColeta(idInserido)
 
                     message.DEFAULT_MESSAGE.status = message.SUCCESS_CREATED_ITEM.status
                     message.DEFAULT_MESSAGE.status_code = message.SUCCESS_CREATED_ITEM.status_code
                     message.DEFAULT_MESSAGE.message = message.SUCCESS_CREATED_ITEM.message
-                    message.DEFAULT_MESSAGE.response = (criado && criado.length > 0)
-                        ? formatarPonto(criado[0])
-                        : { id: idInserido, nome: ponto.nome }
+
+                    if (criado && criado.length > 0) {
+                        message.DEFAULT_MESSAGE.response = await anexarEnderecos(formatarPonto(criado[0]))
+                    } else {
+                        message.DEFAULT_MESSAGE.response = { id: idInserido, nome: ponto.nome }
+                    }
 
                     return message.DEFAULT_MESSAGE // 201
                 } else {
@@ -77,14 +116,30 @@ const atualizarPontoColeta = async function (ponto, id, contentType) {
                     let result = await pontoColetaDAO.updatePontoColeta(ponto)
 
                     if (result) {
+                        // Tabela intermediária: apaga os vínculos antigos e grava a lista nova
+                        let resultDelete = await controlerEnderecoPontoColeta.excluirEnderecosIdPontoColeta(ponto.id)
+
+                        if (!resultDelete.status) {
+                            return message.ERROR_INTERNAL_SEVER_MODEL // 500
+                        }
+
+                        let relacionou = await inserirEnderecosDoPonto(ponto.id, ponto.endereco)
+
+                        if (!relacionou) {
+                            return message.ERROR_INTERNAL_SEVER_MODEL // 500
+                        }
+
                         let atualizado = await pontoColetaDAO.selectByIdPontoColeta(ponto.id)
 
                         message.DEFAULT_MESSAGE.status = message.SUCCESS_UPDETED_ITEM.status
                         message.DEFAULT_MESSAGE.status_code = message.SUCCESS_UPDETED_ITEM.status_code
                         message.DEFAULT_MESSAGE.message = message.SUCCESS_UPDETED_ITEM.message
-                        message.DEFAULT_MESSAGE.response = (atualizado && atualizado.length > 0)
-                            ? formatarPonto(atualizado[0])
-                            : { id: ponto.id, nome: ponto.nome }
+
+                        if (atualizado && atualizado.length > 0) {
+                            message.DEFAULT_MESSAGE.response = await anexarEnderecos(formatarPonto(atualizado[0]))
+                        } else {
+                            message.DEFAULT_MESSAGE.response = { id: ponto.id, nome: ponto.nome }
+                        }
 
                         return message.DEFAULT_MESSAGE // 200
                     } else {
@@ -113,10 +168,19 @@ const listarPontoColeta = async function () {
 
         if (result) {
             if (result.length > 0) {
+                let pontos = []
+
+                // ids em ordem decrescente (ORDER BY do DAO)
+                for (let registro of result) {
+                    let ponto = formatarPonto(registro)
+                    await anexarEnderecos(ponto)
+                    pontos.push(ponto)
+                }
+
                 message.DEFAULT_MESSAGE.status = message.SUCCESS_RESPONSE.status
                 message.DEFAULT_MESSAGE.status_code = message.SUCCESS_RESPONSE.status_code
-                message.DEFAULT_MESSAGE.response.count = result.length
-                message.DEFAULT_MESSAGE.response.ponto_coleta = result.map(formatarPonto) // ids em ordem decrescente (ORDER BY do DAO)
+                message.DEFAULT_MESSAGE.response.count = pontos.length
+                message.DEFAULT_MESSAGE.response.ponto_coleta = pontos
 
                 return message.DEFAULT_MESSAGE // 200
             } else {
@@ -126,6 +190,7 @@ const listarPontoColeta = async function () {
             return message.ERROR_INTERNAL_SEVER_MODEL // 500
         }
     } catch (error) {
+        console.log(error)
         return message.ERROR_INTERNAL_CONTROLER // 500
     }
 }
@@ -142,9 +207,12 @@ const buscarPontoColeta = async function (id) {
 
             if (result) {
                 if (result.length > 0) {
+                    let ponto = formatarPonto(result[0])
+                    await anexarEnderecos(ponto)
+
                     message.DEFAULT_MESSAGE.status = message.SUCCESS_RESPONSE.status
                     message.DEFAULT_MESSAGE.status_code = message.SUCCESS_RESPONSE.status_code
-                    message.DEFAULT_MESSAGE.response.ponto_coleta = formatarPonto(result[0])
+                    message.DEFAULT_MESSAGE.response.ponto_coleta = ponto
 
                     return message.DEFAULT_MESSAGE // 200
                 } else {
@@ -155,6 +223,7 @@ const buscarPontoColeta = async function (id) {
             }
         }
     } catch (error) {
+        console.log(error)
         return message.ERROR_INTERNAL_CONTROLER // 500
     }
 }
@@ -166,6 +235,13 @@ const excluirPontoColeta = async function (id) {
         let resultBuscarID = await buscarPontoColeta(id)
 
         if (resultBuscarID.status) {
+            // Tabela intermediária: precisa apagar os vínculos antes (chave estrangeira)
+            let resultFilhos = await controlerEnderecoPontoColeta.excluirEnderecosIdPontoColeta(id)
+
+            if (!resultFilhos.status) {
+                return message.ERROR_INTERNAL_SEVER_MODEL // 500
+            }
+
             let result = await pontoColetaDAO.deletePontoColeta(id)
 
             if (result) {
@@ -194,6 +270,10 @@ const normalizarDados = function (ponto) {
     ponto.latitude = Number(ponto.latitude)
     ponto.longitude = Number(ponto.longitude)
     ponto.id_categoria = Number(ponto.id_categoria)
+
+    // Remove ids de endereço repetidos na lista
+    let idsEnderecos = [...new Set(ponto.endereco.map(item => Number(item.id)))]
+    ponto.endereco = idsEnderecos.map(idEndereco => ({ id: idEndereco }))
 }
 
 const numeroForaDoLimite = function (valor, min, max) {
@@ -223,6 +303,10 @@ const validarDados = async function (ponto) {
         message.ERROR_BAD_REQUEST.field = "[ID_CATEGORIA] INVÁLIDO"
         return message.ERROR_BAD_REQUEST
 
+    } else if (!Array.isArray(ponto.endereco) || ponto.endereco.length == 0) {
+        message.ERROR_BAD_REQUEST.field = '[ENDERECO] INVÁLIDO (envie uma lista com ao menos 1 endereço, ex: [{ "id": 1 }])'
+        return message.ERROR_BAD_REQUEST
+
     } else {
         // Confere se a categoria existe antes de gravar (evita erro de chave estrangeira)
         let categoria = await categoriaDAO.selectByIdCategoria(ponto.id_categoria)
@@ -230,6 +314,21 @@ const validarDados = async function (ponto) {
         if (!categoria || categoria.length == 0) {
             message.ERROR_BAD_REQUEST.field = "[ID_CATEGORIA] não encontrada"
             return message.ERROR_BAD_REQUEST
+        }
+
+        // Confere cada endereço da lista
+        for (let item of ponto.endereco) {
+            if (item == null || item.id === undefined || item.id === null || item.id === '' || !Number.isInteger(Number(item.id)) || Number(item.id) <= 0) {
+                message.ERROR_BAD_REQUEST.field = '[ENDERECO] cada item precisa de um id válido, ex: { "id": 1 }'
+                return message.ERROR_BAD_REQUEST
+            }
+
+            let enderecoEncontrado = await enderecoDAO.selectByIdEndereco(item.id)
+
+            if (!enderecoEncontrado || enderecoEncontrado.length == 0) {
+                message.ERROR_BAD_REQUEST.field = "[ENDERECO] id " + item.id + " não encontrado"
+                return message.ERROR_BAD_REQUEST
+            }
         }
 
         return false
