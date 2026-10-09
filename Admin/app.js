@@ -28,6 +28,9 @@ app.use('/meraki/ecowayer/admin/categoria', cors(corsOptions), categoriaRouter)
 
 const enderecoRouter = require('./routes/endereco.routes.js')   // Rotas Responsaveis pelo endereço
 app.use('/meraki/ecowayer/admin/endereco', cors(corsOptions), enderecoRouter)
+
+const pontoColetaRouter = require('./routes/ponto_coleta.routes.js') // Rotas Responseveis pelo PONTO DE COLETA
+app.use('/meraki/ecowayer/admin/ponto-coleta', cors(corsOptions), pontoColetaRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080
