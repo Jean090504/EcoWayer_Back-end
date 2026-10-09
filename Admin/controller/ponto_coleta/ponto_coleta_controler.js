@@ -2,14 +2,16 @@
  *  Objetivo: Arquivo responsavel pela validação, tratamento e manipulação de dados
  *            para o CRUD de ponto de coleta
  *  Autor: Maxwillian Santana
- *  Versão: 1.1
+ *  Versão: 1.2
  **********************************************************************************************/
 
 const configMessages = require('../modulo/configMessages.js')
 const pontoColetaDAO = require('../../model/DAO/ponto_coleta/ponto_coleta.js')
 const categoriaDAO = require('../../model/DAO/categoria/categoria.js')
 const enderecoDAO = require('../../model/DAO/endereco/endereco.js')
+const materialAceitoDAO = require('../../model/DAO/material_aceito/material_aceito.js')
 const controlerEnderecoPontoColeta = require('./endereco_ponto_coleta_controler.js')
+const controlerMaterialAceitoPontoColeta = require('./material_aceito_ponto_coleta_controler.js')
 
 // ATENÇÃO: troque pelos valores reais do ENUM da coluna status
 // (rode: SHOW COLUMNS FROM tbl_ponto_coleta LIKE 'status';)
@@ -33,6 +35,23 @@ const anexarEnderecos = async function (ponto) {
     return ponto
 }
 
+// Busca os materiais aceitos do ponto na tabela intermediária e anexa no objeto
+const anexarMateriaisAceitos = async function (ponto) {
+    let resultMateriais = await controlerMaterialAceitoPontoColeta.buscarMateriaisIdPontoColeta(ponto.id)
+
+    ponto.material_aceito = resultMateriais.status ? resultMateriais.response.material_aceito : []
+
+    return ponto
+}
+
+// Anexa todas as relações (endereço e material aceito) no ponto
+const anexarRelacoes = async function (ponto) {
+    await anexarEnderecos(ponto)
+    await anexarMateriaisAceitos(ponto)
+
+    return ponto
+}
+
 // Grava os vínculos do ponto com cada endereço da lista
 const inserirEnderecosDoPonto = async function (idPontoColeta, enderecos) {
     for (let endereco of enderecos) {
@@ -42,6 +61,24 @@ const inserirEnderecosDoPonto = async function (idPontoColeta, enderecos) {
         }
 
         let resultRelacao = await controlerEnderecoPontoColeta.inserirNovoEnderecoPontoColeta(relacao)
+
+        if (!resultRelacao.status) {
+            return false
+        }
+    }
+
+    return true
+}
+
+// Grava os vínculos do ponto com cada material aceito da lista
+const inserirMateriaisDoPonto = async function (idPontoColeta, materiais) {
+    for (let material of materiais) {
+        let relacao = {
+            id_ponto_coleta: idPontoColeta,
+            id_material_aceito: material.id
+        }
+
+        let resultRelacao = await controlerMaterialAceitoPontoColeta.inserirNovoMaterialAceitoPontoColeta(relacao)
 
         if (!resultRelacao.status) {
             return false
@@ -66,10 +103,11 @@ const inserirNovoPontoColeta = async function (ponto, contentType) {
                 let idInserido = await pontoColetaDAO.insertPontoColeta(ponto)
 
                 if (idInserido) {
-                    // Tabela intermediária: vincula os endereços ao ponto recém criado
-                    let relacionou = await inserirEnderecosDoPonto(idInserido, ponto.endereco)
+                    // Tabelas intermediárias: vincula endereços e materiais ao ponto recém criado
+                    let relacionouEnderecos = await inserirEnderecosDoPonto(idInserido, ponto.endereco)
+                    let relacionouMateriais = await inserirMateriaisDoPonto(idInserido, ponto.material_aceito)
 
-                    if (!relacionou) {
+                    if (!relacionouEnderecos || !relacionouMateriais) {
                         return message.SUCCESS_CREATED_WARNING // 201 com alerta de dados não inseridos
                     }
 
@@ -80,7 +118,7 @@ const inserirNovoPontoColeta = async function (ponto, contentType) {
                     message.DEFAULT_MESSAGE.message = message.SUCCESS_CREATED_ITEM.message
 
                     if (criado && criado.length > 0) {
-                        message.DEFAULT_MESSAGE.response = await anexarEnderecos(formatarPonto(criado[0]))
+                        message.DEFAULT_MESSAGE.response = await anexarRelacoes(formatarPonto(criado[0]))
                     } else {
                         message.DEFAULT_MESSAGE.response = { id: idInserido, nome: ponto.nome }
                     }
@@ -116,16 +154,18 @@ const atualizarPontoColeta = async function (ponto, id, contentType) {
                     let result = await pontoColetaDAO.updatePontoColeta(ponto)
 
                     if (result) {
-                        // Tabela intermediária: apaga os vínculos antigos e grava a lista nova
-                        let resultDelete = await controlerEnderecoPontoColeta.excluirEnderecosIdPontoColeta(ponto.id)
+                        // Tabelas intermediárias: apaga os vínculos antigos e grava as listas novas
+                        let resultDeleteEnderecos = await controlerEnderecoPontoColeta.excluirEnderecosIdPontoColeta(ponto.id)
+                        let resultDeleteMateriais = await controlerMaterialAceitoPontoColeta.excluirMateriaisIdPontoColeta(ponto.id)
 
-                        if (!resultDelete.status) {
+                        if (!resultDeleteEnderecos.status || !resultDeleteMateriais.status) {
                             return message.ERROR_INTERNAL_SEVER_MODEL // 500
                         }
 
-                        let relacionou = await inserirEnderecosDoPonto(ponto.id, ponto.endereco)
+                        let relacionouEnderecos = await inserirEnderecosDoPonto(ponto.id, ponto.endereco)
+                        let relacionouMateriais = await inserirMateriaisDoPonto(ponto.id, ponto.material_aceito)
 
-                        if (!relacionou) {
+                        if (!relacionouEnderecos || !relacionouMateriais) {
                             return message.ERROR_INTERNAL_SEVER_MODEL // 500
                         }
 
@@ -136,7 +176,7 @@ const atualizarPontoColeta = async function (ponto, id, contentType) {
                         message.DEFAULT_MESSAGE.message = message.SUCCESS_UPDETED_ITEM.message
 
                         if (atualizado && atualizado.length > 0) {
-                            message.DEFAULT_MESSAGE.response = await anexarEnderecos(formatarPonto(atualizado[0]))
+                            message.DEFAULT_MESSAGE.response = await anexarRelacoes(formatarPonto(atualizado[0]))
                         } else {
                             message.DEFAULT_MESSAGE.response = { id: ponto.id, nome: ponto.nome }
                         }
@@ -173,7 +213,7 @@ const listarPontoColeta = async function () {
                 // ids em ordem decrescente (ORDER BY do DAO)
                 for (let registro of result) {
                     let ponto = formatarPonto(registro)
-                    await anexarEnderecos(ponto)
+                    await anexarRelacoes(ponto)
                     pontos.push(ponto)
                 }
 
@@ -208,7 +248,7 @@ const buscarPontoColeta = async function (id) {
             if (result) {
                 if (result.length > 0) {
                     let ponto = formatarPonto(result[0])
-                    await anexarEnderecos(ponto)
+                    await anexarRelacoes(ponto)
 
                     message.DEFAULT_MESSAGE.status = message.SUCCESS_RESPONSE.status
                     message.DEFAULT_MESSAGE.status_code = message.SUCCESS_RESPONSE.status_code
@@ -235,10 +275,11 @@ const excluirPontoColeta = async function (id) {
         let resultBuscarID = await buscarPontoColeta(id)
 
         if (resultBuscarID.status) {
-            // Tabela intermediária: precisa apagar os vínculos antes (chave estrangeira)
-            let resultFilhos = await controlerEnderecoPontoColeta.excluirEnderecosIdPontoColeta(id)
+            // Tabelas intermediárias: precisa apagar os vínculos antes (chave estrangeira)
+            let resultFilhosEnderecos = await controlerEnderecoPontoColeta.excluirEnderecosIdPontoColeta(id)
+            let resultFilhosMateriais = await controlerMaterialAceitoPontoColeta.excluirMateriaisIdPontoColeta(id)
 
-            if (!resultFilhos.status) {
+            if (!resultFilhosEnderecos.status || !resultFilhosMateriais.status) {
                 return message.ERROR_INTERNAL_SEVER_MODEL // 500
             }
 
@@ -274,6 +315,10 @@ const normalizarDados = function (ponto) {
     // Remove ids de endereço repetidos na lista
     let idsEnderecos = [...new Set(ponto.endereco.map(item => Number(item.id)))]
     ponto.endereco = idsEnderecos.map(idEndereco => ({ id: idEndereco }))
+
+    // Remove ids de material aceito repetidos na lista
+    let idsMateriais = [...new Set(ponto.material_aceito.map(item => Number(item.id)))]
+    ponto.material_aceito = idsMateriais.map(idMaterial => ({ id: idMaterial }))
 }
 
 const numeroForaDoLimite = function (valor, min, max) {
@@ -307,6 +352,10 @@ const validarDados = async function (ponto) {
         message.ERROR_BAD_REQUEST.field = '[ENDERECO] INVÁLIDO (envie uma lista com ao menos 1 endereço, ex: [{ "id": 1 }])'
         return message.ERROR_BAD_REQUEST
 
+    } else if (!Array.isArray(ponto.material_aceito) || ponto.material_aceito.length == 0) {
+        message.ERROR_BAD_REQUEST.field = '[MATERIAL_ACEITO] INVÁLIDO (envie uma lista com ao menos 1 material, ex: [{ "id": 1 }])'
+        return message.ERROR_BAD_REQUEST
+
     } else {
         // Confere se a categoria existe antes de gravar (evita erro de chave estrangeira)
         let categoria = await categoriaDAO.selectByIdCategoria(ponto.id_categoria)
@@ -327,6 +376,21 @@ const validarDados = async function (ponto) {
 
             if (!enderecoEncontrado || enderecoEncontrado.length == 0) {
                 message.ERROR_BAD_REQUEST.field = "[ENDERECO] id " + item.id + " não encontrado"
+                return message.ERROR_BAD_REQUEST
+            }
+        }
+
+        // Confere cada material aceito da lista
+        for (let item of ponto.material_aceito) {
+            if (item == null || item.id === undefined || item.id === null || item.id === '' || !Number.isInteger(Number(item.id)) || Number(item.id) <= 0) {
+                message.ERROR_BAD_REQUEST.field = '[MATERIAL_ACEITO] cada item precisa de um id válido, ex: { "id": 1 }'
+                return message.ERROR_BAD_REQUEST
+            }
+
+            let materialEncontrado = await materialAceitoDAO.selectByIdMaterialAceito(Number(item.id))
+
+            if (!materialEncontrado || materialEncontrado.length == 0) {
+                message.ERROR_BAD_REQUEST.field = "[MATERIAL_ACEITO] id " + item.id + " não encontrado"
                 return message.ERROR_BAD_REQUEST
             }
         }
