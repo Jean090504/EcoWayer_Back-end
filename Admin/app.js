@@ -43,6 +43,9 @@ app.use('/meraki/ecowayer/admin/genero', cors(corsOptions), generoRouter)
   
 const tipoImagemRouter = require('./routes/tipo_imagem.routes.js') // Rotas responsaveis pelo tipo_imagem
 app.use('/meraki/ecowayer/admin/tipo-imagem', cors(corsOptions), tipoImagemRouter)
+
+const nivelImpactoRouter = require('./routes/nivel_impacto.routes.js')
+app.use('/meraki/ecowayer/admin/nivel-impacto', cors(corsOptions), nivelImpactoRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080
