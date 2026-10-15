@@ -34,6 +34,12 @@ app.use('/meraki/ecowayer/admin/ponto-coleta', cors(corsOptions), pontoColetaRou
 
 const materialAceitoRouter = require('./routes/material_aceito.routes.js')   // Rotas responsaveis pela gerencia de MATERIAL ACEITO
 app.use('/meraki/ecowayer/admin/material-aceito', cors(corsOptions), materialAceitoRouter)
+
+const statusUsuarioRouter = require('./routes/status_usuario.routes.js') /// Rotas responsaveis pelo Status do Usuario
+app.use('/meraki/ecowayer/admin/status-usuario', cors(corsOptions), statusUsuarioRouter)
+
+const generoRouter = require('./routes/genero.routes.js')   // Rotas resonsaveis pelo genero
+app.use('/meraki/ecowayer/admin/genero', cors(corsOptions), generoRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080
