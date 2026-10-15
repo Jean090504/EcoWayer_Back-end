@@ -21,7 +21,7 @@ const administradorRouter = require('./routes/administrador.routes.js')   // Rot
 app.use('/meraki/ecowayer/admin/gerenciar', cors(corsOptions), administradorRouter)
 
 const tipoCategoriaRouter = require('./routes/tipo_categoria.routes.js') // Rotas Responsaveis pela gerencia de TIPO CATEGORIA
-app.use('/v1/senai/locadora/tipo-categoria', cors(corsOptions), tipoCategoriaRouter)
+app.use('/meraki/ecowayer/admin/tipo-categoria', cors(corsOptions), tipoCategoriaRouter)
 
 const categoriaRouter = require('./routes/categoria.routes.js')     // Rotas Responsaveis pela gerencia CATEGORIA
 app.use('/meraki/ecowayer/admin/categoria', cors(corsOptions), categoriaRouter)
@@ -40,6 +40,9 @@ app.use('/meraki/ecowayer/admin/status-usuario', cors(corsOptions), statusUsuari
 
 const generoRouter = require('./routes/genero.routes.js')   // Rotas resonsaveis pelo genero
 app.use('/meraki/ecowayer/admin/genero', cors(corsOptions), generoRouter)
+  
+const tipoImagemRouter = require('./routes/tipo_imagem.routes.js') // Rotas responsaveis pelo tipo_imagem
+app.use('/meraki/ecowayer/admin/tipo-imagem', cors(corsOptions), tipoImagemRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080
