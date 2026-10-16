@@ -50,8 +50,14 @@ app.use('/meraki/ecowayer/admin/nivel-impacto', cors(corsOptions), nivelImpactoR
 const imagemRouter = require('./routes/imagem.routes.js') // Rotas responsaveis pela imagem
 app.use('/meraki/ecowayer/admin/imagem', cors(corsOptions), imagemRouter)
 
-const usuarioRouter = require('./routes/usuario.routes.js')
+const usuarioRouter = require('./routes/usuario.routes.js') // Rotas responsaveis pelo o Usuario
 app.use('/meraki/ecowayer/admin/usuario', cors(corsOptions), usuarioRouter)
+
+const condicaoItemRouter = require('./routes/condicao_item.routes.js') // Rotas responsaveis pela condição do item
+app.use('/meraki/ecowayer/admin/condicao-item', cors(corsOptions), condicaoItemRouter)
+
+const anuncioRouter = require('./routes/anuncio.routes.js')
+app.use('/meraki/ecowayer/admin/anuncio', cors(corsOptions), anuncioRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080
