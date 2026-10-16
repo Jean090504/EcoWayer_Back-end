@@ -44,8 +44,14 @@ app.use('/meraki/ecowayer/admin/genero', cors(corsOptions), generoRouter)
 const tipoImagemRouter = require('./routes/tipo_imagem.routes.js') // Rotas responsaveis pelo tipo_imagem
 app.use('/meraki/ecowayer/admin/tipo-imagem', cors(corsOptions), tipoImagemRouter)
 
-const nivelImpactoRouter = require('./routes/nivel_impacto.routes.js')
+const nivelImpactoRouter = require('./routes/nivel_impacto.routes.js') // Rotas Responsaveis pelo Usuario
 app.use('/meraki/ecowayer/admin/nivel-impacto', cors(corsOptions), nivelImpactoRouter)
+
+const imagemRouter = require('./routes/imagem.routes.js') // Rotas responsaveis pela imagem
+app.use('/meraki/ecowayer/admin/imagem', cors(corsOptions), imagemRouter)
+
+const usuarioRouter = require('./routes/usuario.routes.js')
+app.use('/meraki/ecowayer/admin/usuario', cors(corsOptions), usuarioRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080
