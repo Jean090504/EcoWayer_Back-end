@@ -56,8 +56,11 @@ app.use('/meraki/ecowayer/admin/usuario', cors(corsOptions), usuarioRouter)
 const condicaoItemRouter = require('./routes/condicao_item.routes.js') // Rotas responsaveis pela condição do item
 app.use('/meraki/ecowayer/admin/condicao-item', cors(corsOptions), condicaoItemRouter)
 
-const anuncioRouter = require('./routes/anuncio.routes.js')
+const anuncioRouter = require('./routes/anuncio.routes.js') // Rotas responsaveis pelos pontos
 app.use('/meraki/ecowayer/admin/anuncio', cors(corsOptions), anuncioRouter)
+
+const pontosRouter = require('./routes/pontos.routes.js')  //
+app.use('/meraki/ecowayer/admin/pontos', cors(corsOptions), pontosRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080

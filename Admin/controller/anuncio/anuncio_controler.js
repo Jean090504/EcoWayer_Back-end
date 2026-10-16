@@ -1,10 +1,12 @@
 /**************************************************************************************
- * Objetivo: Controller responsável pela validação e regras de negócio do CRUD de anúncio
+ * Objetivo: Controller responsável pela validação e regras de negócio do CRUD de anúncio.
+ *           A parte de imagens fica em imagem_anuncio_controler.js (que chama o controller de imagem).
  * Local: controller/anuncio/anuncio_controler.js
  **************************************************************************************/
 
 const configMessages = require('../modulo/configMessages.js')
 const anuncioDAO = require('../../model/DAO/anuncio/anuncio.js')
+const controlerImagemAnuncio = require('./imagem_anuncio_controler.js')
 
 // Transforma a linha "achatada" do JOIN no JSON com as chaves estrangeiras aninhadas
 const montarAnuncio = function (row) {
@@ -49,6 +51,16 @@ const montarAnuncio = function (row) {
     }
 }
 
+// Padroniza os dados antes de gravar
+const normalizarDados = function (anuncio) {
+    anuncio.nome = String(anuncio.nome).trim()
+    anuncio.descricao = String(anuncio.descricao).trim()
+
+    if (Array.isArray(anuncio.imagem)) {
+        anuncio.imagem = controlerImagemAnuncio.normalizarListaImagens(anuncio.imagem)
+    }
+}
+
 const inserirNovoAnuncio = async function (anuncio, contentType) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
@@ -59,10 +71,21 @@ const inserirNovoAnuncio = async function (anuncio, contentType) {
             if (validar) {
                 return validar // 400
             } else {
+                normalizarDados(anuncio)
+
                 let idInserido = await anuncioDAO.insertAnuncio(anuncio)
 
                 if (idInserido) {
-                    // devolve o anúncio completo, já com as chaves estrangeiras expandidas
+                    // Imagens: o controller de imagem do anúncio grava os vínculos
+                    if (Array.isArray(anuncio.imagem)) {
+                        let relacionouImagens = await controlerImagemAnuncio.inserirImagensDoAnuncio(idInserido, anuncio.imagem)
+
+                        if (!relacionouImagens) {
+                            return message.SUCCESS_CREATED_WARNING // 201 com alerta de dados não inseridos
+                        }
+                    }
+
+                    // devolve o anúncio completo, já com as chaves estrangeiras e imagens
                     let criado = await buscarAnuncio(idInserido)
 
                     message.DEFAULT_MESSAGE.status = message.SUCCESS_CREATED_ITEM.status
@@ -97,11 +120,21 @@ const atualizarAnuncio = async function (anuncio, id, contentType) {
                 let validar = await validarDados(anuncio, false)
 
                 if (!validar) {
+                    normalizarDados(anuncio)
                     anuncio.id = Number(id)
 
                     let result = await anuncioDAO.updateAnuncio(anuncio)
 
                     if (result) {
+                        // Imagens: só troca se a lista "imagem" foi enviada
+                        if (Array.isArray(anuncio.imagem)) {
+                            let trocouImagens = await controlerImagemAnuncio.substituirImagensDoAnuncio(anuncio.id, anuncio.imagem)
+
+                            if (!trocouImagens) {
+                                return message.ERROR_INTERNAL_SEVER_MODEL // 500
+                            }
+                        }
+
                         let atualizado = await buscarAnuncio(id)
 
                         message.DEFAULT_MESSAGE.status = message.SUCCESS_UPDETED_ITEM.status
@@ -138,10 +171,19 @@ const listarAnuncio = async function () {
 
         if (result) {
             if (result.length > 0) {
+                let anuncios = []
+
+                // ids em ordem decrescente (ORDER BY do DAO)
+                for (let registro of result) {
+                    let anuncio = montarAnuncio(registro)
+                    await controlerImagemAnuncio.anexarImagensAoAnuncio(anuncio)
+                    anuncios.push(anuncio)
+                }
+
                 message.DEFAULT_MESSAGE.status = message.SUCCESS_RESPONSE.status
                 message.DEFAULT_MESSAGE.status_code = message.SUCCESS_RESPONSE.status_code
-                message.DEFAULT_MESSAGE.response.count = result.length
-                message.DEFAULT_MESSAGE.response.anuncio = result.map(montarAnuncio)
+                message.DEFAULT_MESSAGE.response.count = anuncios.length
+                message.DEFAULT_MESSAGE.response.anuncio = anuncios
 
                 return message.DEFAULT_MESSAGE // 200
             } else {
@@ -168,9 +210,12 @@ const buscarAnuncio = async function (id) {
 
             if (result) {
                 if (result.length > 0) {
+                    let anuncio = montarAnuncio(result[0])
+                    await controlerImagemAnuncio.anexarImagensAoAnuncio(anuncio)
+
                     message.DEFAULT_MESSAGE.status = message.SUCCESS_RESPONSE.status
                     message.DEFAULT_MESSAGE.status_code = message.SUCCESS_RESPONSE.status_code
-                    message.DEFAULT_MESSAGE.response.anuncio = montarAnuncio(result[0])
+                    message.DEFAULT_MESSAGE.response.anuncio = anuncio
 
                     return message.DEFAULT_MESSAGE // 200
                 } else {
@@ -193,6 +238,13 @@ const excluirAnuncio = async function (id) {
         let resultBuscarID = await buscarAnuncio(id)
 
         if (resultBuscarID.status) {
+            // Imagens: precisa apagar os vínculos antes (chave estrangeira)
+            let resultFilhosImagens = await controlerImagemAnuncio.excluirImagensIdAnuncio(id)
+
+            if (!resultFilhosImagens.status) {
+                return message.ERROR_INTERNAL_SEVER_MODEL // 500
+            }
+
             let result = await anuncioDAO.deleteAnuncio(id)
 
             if (result) {
@@ -221,6 +273,7 @@ const idValido = function (valor) {
 
 // Retorna false se os dados estão corretos, ou o ERROR_BAD_REQUEST indicando o campo inválido.
 // "inserir" = true exige id_usuario (dono do anúncio); na atualização ele não é alterado.
+// "imagem" é opcional: se vier, quem valida é o controller de imagem do anúncio.
 const validarDados = async function (anuncio, inserir) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
@@ -242,6 +295,8 @@ const validarDados = async function (anuncio, inserir) {
     } else if (!idValido(anuncio.id_condicao_item)) {
         message.ERROR_BAD_REQUEST.field = '[ID_CONDICAO_ITEM] INVÁLIDO (obrigatório, número)'
         return message.ERROR_BAD_REQUEST
+    } else if (anuncio.imagem !== undefined) {
+        return await controlerImagemAnuncio.validarListaImagens(anuncio.imagem)
     } else {
         return false
     }
