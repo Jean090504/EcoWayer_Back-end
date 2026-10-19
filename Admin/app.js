@@ -73,6 +73,9 @@ app.use('/meraki/ecowayer/admin/pagamento', cors(corsOptions), pagamentoRouter)
 
 const conversaRouter = require('./routes/conversa.routes.js')     // Rotas Responsaveis pela conversa
 app.use('/meraki/ecowayer/admin/conversa', cors(corsOptions), conversaRouter)
+
+const mensagemRouter = require('./routes/mensagem.routes.js')
+app.use('/meraki/ecowayer/admin/mensagem', cors(corsOptions), mensagemRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080
