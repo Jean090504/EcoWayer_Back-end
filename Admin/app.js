@@ -88,6 +88,9 @@ app.use('/meraki/ecowayer/admin/historico-anuncio', cors(corsOptions), historico
 
 const iaRouter = require('./routes/ia.routes.js') //Rotas responsaveis pela IA
 app.use('/meraki/ecowayer/admin/ia', cors(corsOptions), iaRouter)
+
+const datasetRouter = require('./routes/dataset.routes.js') //Rotas responsaveis pelo dataset
+app.use('/meraki/ecowayer/admin/dataset', cors(corsOptions), datasetRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080
