@@ -74,8 +74,14 @@ app.use('/meraki/ecowayer/admin/pagamento', cors(corsOptions), pagamentoRouter)
 const conversaRouter = require('./routes/conversa.routes.js')     // Rotas Responsaveis pela conversa
 app.use('/meraki/ecowayer/admin/conversa', cors(corsOptions), conversaRouter)
 
-const mensagemRouter = require('./routes/mensagem.routes.js')
+const mensagemRouter = require('./routes/mensagem.routes.js') // Rotas Responsaveis pelas mensagens
 app.use('/meraki/ecowayer/admin/mensagem', cors(corsOptions), mensagemRouter)
+
+const tipoDenunciaRouter = require('./routes/tipo_denuncia.routes.js')   // Rotas responsaveis pela gerencia de TIPO DE DENUNCIA
+app.use('/meraki/ecowayer/admin/tipo-denuncia', cors(corsOptions), tipoDenunciaRouter)
+
+const denunciaRouter = require('./routes/denuncia.routes.js') // Rotas responsaveis pela Denuncia
+app.use('/meraki/ecowayer/admin/denuncia', cors(corsOptions), denunciaRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080
