@@ -94,6 +94,9 @@ app.use('/meraki/ecowayer/admin/dataset', cors(corsOptions), datasetRouter)
 
 const treinamentoIARouter = require('./routes/treinamento_ia.routes.js') //Rotas responsaveis pelo treinamento de IA
 app.use('/meraki/ecowayer/admin/treinamento-ia', cors(corsOptions), treinamentoIARouter)
+
+const alertasRouter = require('./routes/alertas.routes.js') //Rotas responsaveis pelos alertas
+app.use('/meraki/ecowayer/admin/alertas', cors(corsOptions), alertasRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080
