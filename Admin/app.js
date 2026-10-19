@@ -85,6 +85,9 @@ app.use('/meraki/ecowayer/admin/denuncia', cors(corsOptions), denunciaRouter)
 
 const historicoAnuncioRouter = require('./routes/historico_anuncio.routes.js') //Rotas responsavieis pelo historico anuncio
 app.use('/meraki/ecowayer/admin/historico-anuncio', cors(corsOptions), historicoAnuncioRouter)
+
+const iaRouter = require('./routes/ia.routes.js') //Rotas responsaveis pela IA
+app.use('/meraki/ecowayer/admin/ia', cors(corsOptions), iaRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080

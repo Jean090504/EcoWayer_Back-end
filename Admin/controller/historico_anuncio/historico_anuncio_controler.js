@@ -13,7 +13,7 @@ const controlerAnuncio = require('../anuncio/anuncio_controler.js') // buscarAnu
 
 // ATENÇÃO: troque pelos valores reais do ENUM da coluna status
 // (rode: SHOW COLUMNS FROM tbl_historico_anuncio LIKE 'status';)
-const STATUS_VALIDOS = ['pendente', 'aprovado', 'rejeitado']
+const STATUS_VALIDOS = [ 'ATIVO','DESATIVADO','APAGADO','NEGOCIANDO']
 
 // Chama o "buscar" de outro controller e devolve só o objeto encontrado (ou null)
 const buscarRelacionado = async function (funcaoBuscar, id) {
