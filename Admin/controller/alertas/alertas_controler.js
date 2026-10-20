@@ -7,6 +7,9 @@
 const configMessages = require('../modulo/configMessages.js')
 const alertasDAO = require('../../model/DAO/alertas/alertas.js')
 
+// Controller da tabela intermediária (anúncios do alerta). Ele é quem chama o controller de anúncio.
+const controlerAlertasAnuncio = require('./alertas_anuncio_controler.js')
+
 // Controllers que já existem e fornecem os dados das chaves estrangeiras.
 // CONFIRME os caminhos e os nomes das funções exportadas (module.exports).
 const controlerIA = require('../ia/ia_controler.js')                // buscarIA
@@ -43,13 +46,16 @@ const buscarComCache = async function (cache, tipo, funcaoBuscar, id) {
     return cache[tipo][id]
 }
 
-// Troca id_ia e id_usuario pelos objetos correspondentes
+// Troca id_ia e id_usuario pelos objetos correspondentes e anexa os anúncios do alerta
 const montarAlerta = async function (alerta, cache = {}) {
     alerta.ia = await buscarComCache(cache, 'ia', controlerIA.buscarIA, alerta.id_ia)
     alerta.usuario = await buscarComCache(cache, 'usuario', controlerUsuario.buscarUsuario, alerta.id_usuario)
 
     delete alerta.id_ia
     delete alerta.id_usuario
+
+    // Tabela intermediária: o controller dos anúncios do alerta busca e anexa (alerta.anuncio)
+    await controlerAlertasAnuncio.anexarAnunciosAoAlerta(alerta)
 
     return alerta
 }
@@ -69,6 +75,15 @@ const inserirNovoAlerta = async function (alerta, contentType) {
                 let idInserido = await alertasDAO.insertAlerta(alerta)
 
                 if (idInserido) {
+                    // Anúncios: o controller da intermediária grava os vínculos (lista opcional)
+                    if (Array.isArray(alerta.anuncio)) {
+                        let relacionouAnuncios = await controlerAlertasAnuncio.inserirAnunciosDoAlerta(idInserido, alerta.anuncio)
+
+                        if (!relacionouAnuncios) {
+                            return message.SUCCESS_CREATED_WARNING // 201 com alerta de dados não inseridos
+                        }
+                    }
+
                     let criado = await alertasDAO.selectByIdAlerta(idInserido)
 
                     message.DEFAULT_MESSAGE.status = message.SUCCESS_CREATED_ITEM.status
@@ -112,6 +127,15 @@ const atualizarAlerta = async function (alerta, id, contentType) {
                     let result = await alertasDAO.updateAlerta(alerta)
 
                     if (result) {
+                        // Anúncios: só troca se a lista "anuncio" foi enviada (sem a lista, mantém os atuais)
+                        if (Array.isArray(alerta.anuncio)) {
+                            let trocouAnuncios = await controlerAlertasAnuncio.substituirAnunciosDoAlerta(alerta.id, alerta.anuncio)
+
+                            if (!trocouAnuncios) {
+                                return message.ERROR_INTERNAL_SEVER_MODEL // 500
+                            }
+                        }
+
                         let atualizado = await alertasDAO.selectByIdAlerta(alerta.id)
 
                         message.DEFAULT_MESSAGE.status = message.SUCCESS_UPDETED_ITEM.status
@@ -212,6 +236,16 @@ const excluirAlerta = async function (id) {
         let resultBuscarID = await buscarAlerta(id)
 
         if (resultBuscarID.status) {
+            // Guarda os anúncios atuais: se a exclusão do alerta falhar, os vínculos são devolvidos
+            let anunciosAtuais = resultBuscarID.response.alerta.anuncio || []
+
+            // Tabela intermediária: precisa apagar os vínculos antes (chave estrangeira)
+            let resultFilhosAnuncios = await controlerAlertasAnuncio.excluirAnunciosIdAlerta(id)
+
+            if (!resultFilhosAnuncios.status) {
+                return message.ERROR_INTERNAL_SEVER_MODEL // 500
+            }
+
             let result = await alertasDAO.deleteAlerta(id)
 
             if (result) {
@@ -222,6 +256,8 @@ const excluirAlerta = async function (id) {
 
                 return message.DEFAULT_MESSAGE // 200
             } else {
+                await controlerAlertasAnuncio.inserirAnunciosDoAlerta(Number(id), anunciosAtuais)
+
                 return message.ERROR_INTERNAL_SEVER_MODEL // 500
             }
         } else {
@@ -246,6 +282,11 @@ const normalizarDados = function (alerta) {
     if (alerta.id_usuario !== undefined) {
         alerta.id_usuario = Number(alerta.id_usuario)
     }
+
+    // Remove ids de anúncio repetidos na lista (se ela foi enviada)
+    if (Array.isArray(alerta.anuncio)) {
+        alerta.anuncio = controlerAlertasAnuncio.normalizarListaAnuncios(alerta.anuncio)
+    }
 }
 
 const idInvalido = function (valor) {
@@ -254,6 +295,7 @@ const idInvalido = function (valor) {
 
 // Retorna false se os dados estão corretos, ou o ERROR_BAD_REQUEST indicando o campo inválido.
 // "inserir" = true exige id_ia e id_usuario; na atualização eles não são alterados.
+// "anuncio" é opcional: se vier, quem valida é o controller dos anúncios do alerta.
 const validarDados = async function (alerta, inserir) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
@@ -287,6 +329,15 @@ const validarDados = async function (alerta, inserir) {
         if (inserir && !await buscarRelacionado(controlerUsuario.buscarUsuario, alerta.id_usuario)) {
             message.ERROR_BAD_REQUEST.field = '[ID_USUARIO] não encontrado'
             return message.ERROR_BAD_REQUEST
+        }
+
+        // Confere a lista de anúncios (opcional)
+        if (alerta.anuncio !== undefined) {
+            let erroAnuncios = await controlerAlertasAnuncio.validarListaAnuncios(alerta.anuncio)
+
+            if (erroAnuncios) {
+                return erroAnuncios
+            }
         }
 
         return false
