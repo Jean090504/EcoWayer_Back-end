@@ -101,8 +101,11 @@ app.use('/meraki/ecowayer/admin/alertas', cors(corsOptions), alertasRouter)
 const entregaRouter = require('./routes/entrega.routes.js') //Rotas responsaveis pelas entregas
 app.use('/meraki/ecowayer/admin/entrega', cors(corsOptions), entregaRouter)
 
-const historicoPagamentoRouter = require('./routes/historico_pagamento.routes.js')
+const historicoPagamentoRouter = require('./routes/historico_pagamento.routes.js') // Rotas responsaveis pelas rotas de pagamentos
 app.use('/meraki/ecowayer/admin/historico-pagamento', cors(corsOptions), historicoPagamentoRouter)
+
+const avaliacaoRouter = require('./routes/avaliacao.routes.js') // Rotas responsaveis pela avaliacao
+app.use('/meraki/ecowayer/admin/avaliacao', cors(corsOptions), avaliacaoRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080
