@@ -7,8 +7,10 @@
 const configMessages = require('../modulo/configMessages.js')
 const alertasDAO = require('../../model/DAO/alertas/alertas.js')
 
-// Controller da tabela intermediária (anúncios do alerta). Ele é quem chama o controller de anúncio.
+// Controllers das tabelas intermediárias (anúncios e denúncias do alerta).
+// Eles é que chamam os controllers de anúncio e de denúncia.
 const controlerAlertasAnuncio = require('./alertas_anuncio_controler.js')
+const controlerAlertasDenuncia = require('./alertas_denuncia_controler.js')
 
 // Controllers que já existem e fornecem os dados das chaves estrangeiras.
 // CONFIRME os caminhos e os nomes das funções exportadas (module.exports).
@@ -46,7 +48,7 @@ const buscarComCache = async function (cache, tipo, funcaoBuscar, id) {
     return cache[tipo][id]
 }
 
-// Troca id_ia e id_usuario pelos objetos correspondentes e anexa os anúncios do alerta
+// Troca id_ia e id_usuario pelos objetos correspondentes e anexa os anúncios e as denúncias do alerta
 const montarAlerta = async function (alerta, cache = {}) {
     alerta.ia = await buscarComCache(cache, 'ia', controlerIA.buscarIA, alerta.id_ia)
     alerta.usuario = await buscarComCache(cache, 'usuario', controlerUsuario.buscarUsuario, alerta.id_usuario)
@@ -56,6 +58,9 @@ const montarAlerta = async function (alerta, cache = {}) {
 
     // Tabela intermediária: o controller dos anúncios do alerta busca e anexa (alerta.anuncio)
     await controlerAlertasAnuncio.anexarAnunciosAoAlerta(alerta)
+
+    // Denúncias: o controller das denúncias do alerta busca e anexa (alerta.denuncia)
+    await controlerAlertasDenuncia.anexarDenunciasAoAlerta(alerta)
 
     return alerta
 }
@@ -80,6 +85,15 @@ const inserirNovoAlerta = async function (alerta, contentType) {
                         let relacionouAnuncios = await controlerAlertasAnuncio.inserirAnunciosDoAlerta(idInserido, alerta.anuncio)
 
                         if (!relacionouAnuncios) {
+                            return message.SUCCESS_CREATED_WARNING // 201 com alerta de dados não inseridos
+                        }
+                    }
+
+                    // Denúncias: o controller da intermediária grava os vínculos (lista opcional)
+                    if (Array.isArray(alerta.denuncia)) {
+                        let relacionouDenuncias = await controlerAlertasDenuncia.inserirDenunciasDoAlerta(idInserido, alerta.denuncia)
+
+                        if (!relacionouDenuncias) {
                             return message.SUCCESS_CREATED_WARNING // 201 com alerta de dados não inseridos
                         }
                     }
@@ -132,6 +146,15 @@ const atualizarAlerta = async function (alerta, id, contentType) {
                             let trocouAnuncios = await controlerAlertasAnuncio.substituirAnunciosDoAlerta(alerta.id, alerta.anuncio)
 
                             if (!trocouAnuncios) {
+                                return message.ERROR_INTERNAL_SEVER_MODEL // 500
+                            }
+                        }
+
+                        // Denúncias: só troca se a lista "denuncia" foi enviada (sem a lista, mantém as atuais)
+                        if (Array.isArray(alerta.denuncia)) {
+                            let trocouDenuncias = await controlerAlertasDenuncia.substituirDenunciasDoAlerta(alerta.id, alerta.denuncia)
+
+                            if (!trocouDenuncias) {
                                 return message.ERROR_INTERNAL_SEVER_MODEL // 500
                             }
                         }
@@ -236,13 +259,23 @@ const excluirAlerta = async function (id) {
         let resultBuscarID = await buscarAlerta(id)
 
         if (resultBuscarID.status) {
-            // Guarda os anúncios atuais: se a exclusão do alerta falhar, os vínculos são devolvidos
+            // Guarda os vínculos atuais: se a exclusão do alerta falhar, eles são devolvidos
             let anunciosAtuais = resultBuscarID.response.alerta.anuncio || []
+            let denunciasAtuais = resultBuscarID.response.alerta.denuncia || []
 
-            // Tabela intermediária: precisa apagar os vínculos antes (chave estrangeira)
+            // Tabelas intermediárias: precisa apagar os vínculos antes (chave estrangeira)
             let resultFilhosAnuncios = await controlerAlertasAnuncio.excluirAnunciosIdAlerta(id)
 
             if (!resultFilhosAnuncios.status) {
+                return message.ERROR_INTERNAL_SEVER_MODEL // 500
+            }
+
+            // Denúncias: se falhar, devolve os anúncios que acabaram de ser desvinculados
+            let resultFilhosDenuncias = await controlerAlertasDenuncia.excluirDenunciasIdAlerta(id)
+
+            if (!resultFilhosDenuncias.status) {
+                await controlerAlertasAnuncio.inserirAnunciosDoAlerta(Number(id), anunciosAtuais)
+
                 return message.ERROR_INTERNAL_SEVER_MODEL // 500
             }
 
@@ -257,6 +290,7 @@ const excluirAlerta = async function (id) {
                 return message.DEFAULT_MESSAGE // 200
             } else {
                 await controlerAlertasAnuncio.inserirAnunciosDoAlerta(Number(id), anunciosAtuais)
+                await controlerAlertasDenuncia.inserirDenunciasDoAlerta(Number(id), denunciasAtuais)
 
                 return message.ERROR_INTERNAL_SEVER_MODEL // 500
             }
@@ -287,6 +321,11 @@ const normalizarDados = function (alerta) {
     if (Array.isArray(alerta.anuncio)) {
         alerta.anuncio = controlerAlertasAnuncio.normalizarListaAnuncios(alerta.anuncio)
     }
+
+    // Remove ids de denúncia repetidos na lista (se ela foi enviada)
+    if (Array.isArray(alerta.denuncia)) {
+        alerta.denuncia = controlerAlertasDenuncia.normalizarListaDenuncias(alerta.denuncia)
+    }
 }
 
 const idInvalido = function (valor) {
@@ -295,7 +334,7 @@ const idInvalido = function (valor) {
 
 // Retorna false se os dados estão corretos, ou o ERROR_BAD_REQUEST indicando o campo inválido.
 // "inserir" = true exige id_ia e id_usuario; na atualização eles não são alterados.
-// "anuncio" é opcional: se vier, quem valida é o controller dos anúncios do alerta.
+// "anuncio" e "denuncia" são opcionais: se vierem, quem valida são os controllers das intermediárias.
 const validarDados = async function (alerta, inserir) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
@@ -337,6 +376,15 @@ const validarDados = async function (alerta, inserir) {
 
             if (erroAnuncios) {
                 return erroAnuncios
+            }
+        }
+
+        // Confere a lista de denúncias (opcional)
+        if (alerta.denuncia !== undefined) {
+            let erroDenuncias = await controlerAlertasDenuncia.validarListaDenuncias(alerta.denuncia)
+
+            if (erroDenuncias) {
+                return erroDenuncias
             }
         }
 
