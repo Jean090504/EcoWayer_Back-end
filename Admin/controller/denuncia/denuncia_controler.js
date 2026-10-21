@@ -7,9 +7,8 @@
 
 const configMessages = require('../modulo/configMessages.js')
 const denunciaDAO = require('../../model/DAO/denuncia/denuncia.js')
-
-// Controller da tabela intermediária (imagens da denúncia). Ele é quem chama o controller de imagem.
-const controlerImagemDenuncias = require('./imagem_denuncias_controler.js')
+const mensagemDAO = require('../../model/DAO/mensagem/mensagem.js')
+const controlerDenunciaMensagem = require('./denuncia_mensagem_controler.js')
 
 // Controllers que já existem e fornecem os dados das chaves estrangeiras.
 // CONFIRME os caminhos e os nomes das funções exportadas (module.exports) de cada um.
@@ -43,7 +42,7 @@ const buscarComCache = async function (cache, tipo, funcaoBuscar, id) {
     return cache[tipo][id]
 }
 
-// Troca os id_... pelos objetos relacionados e anexa as imagens da denúncia
+// Troca os id_... pelos objetos relacionados e anexa as mensagens (tabela intermediária)
 const montarDenuncia = async function (denuncia, cache = {}) {
     let denunciante = await buscarComCache(cache, 'usuario', controlerUsuario.buscarUsuario, denuncia.id_denunciante)
 
@@ -54,10 +53,29 @@ const montarDenuncia = async function (denuncia, cache = {}) {
     delete denuncia.id_denunciante
     delete denuncia.id_tipo_denuncias
 
-    // Tabela intermediária: o controller das imagens da denúncia busca e anexa (denuncia.imagem)
-    await controlerImagemDenuncias.anexarImagensADenuncia(denuncia)
+    // Mensagens ligadas à denúncia (lista vazia quando não há nenhuma)
+    let resultMensagens = await controlerDenunciaMensagem.buscarMensagensIdDenuncia(denuncia.id)
+    denuncia.mensagem = resultMensagens.status ? resultMensagens.response.mensagem : []
 
     return denuncia
+}
+
+// Grava os vínculos da denúncia com cada mensagem da lista
+const vincularMensagens = async function (idDenuncia, mensagens) {
+    for (let item of mensagens) {
+        let relacao = {
+            id_denuncias: idDenuncia,
+            id_mensagens: item.id
+        }
+
+        let resultRelacao = await controlerDenunciaMensagem.inserirNovaDenunciaMensagem(relacao)
+
+        if (!resultRelacao.status) {
+            return false
+        }
+    }
+
+    return true
 }
 
 const inserirNovaDenuncia = async function (denuncia, contentType) {
@@ -75,13 +93,11 @@ const inserirNovaDenuncia = async function (denuncia, contentType) {
                 let idInserido = await denunciaDAO.insertDenuncia(denuncia)
 
                 if (idInserido) {
-                    // Imagens: o controller da intermediária grava os vínculos (lista opcional)
-                    if (Array.isArray(denuncia.imagem)) {
-                        let relacionouImagens = await controlerImagemDenuncias.inserirImagensDaDenuncia(idInserido, denuncia.imagem)
+                    // Tabela intermediária: vincula as mensagens à denúncia recém criada (se enviadas)
+                    let relacionou = await vincularMensagens(idInserido, denuncia.mensagem || [])
 
-                        if (!relacionouImagens) {
-                            return message.SUCCESS_CREATED_WARNING // 201 com alerta de dados não inseridos
-                        }
+                    if (!relacionou) {
+                        return message.SUCCESS_CREATED_WARNING // 201 com alerta de dados não inseridos
                     }
 
                     let criada = await denunciaDAO.selectByIdDenuncia(idInserido)
@@ -127,11 +143,17 @@ const atualizarDenuncia = async function (denuncia, id, contentType) {
                     let result = await denunciaDAO.updateDenuncia(denuncia)
 
                     if (result) {
-                        // Imagens: só troca se a lista "imagem" foi enviada (sem a lista, mantém as atuais)
-                        if (Array.isArray(denuncia.imagem)) {
-                            let trocouImagens = await controlerImagemDenuncias.substituirImagensDaDenuncia(denuncia.id, denuncia.imagem)
+                        // Tabela intermediária: só mexe nas mensagens se a lista foi enviada no JSON
+                        if (Array.isArray(denuncia.mensagem)) {
+                            let resultDelete = await controlerDenunciaMensagem.excluirMensagensIdDenuncia(denuncia.id)
 
-                            if (!trocouImagens) {
+                            if (!resultDelete.status) {
+                                return message.ERROR_INTERNAL_SEVER_MODEL // 500
+                            }
+
+                            let relacionou = await vincularMensagens(denuncia.id, denuncia.mensagem)
+
+                            if (!relacionou) {
                                 return message.ERROR_INTERNAL_SEVER_MODEL // 500
                             }
                         }
@@ -237,21 +259,16 @@ const excluirDenuncia = async function (id) {
         let resultBuscarID = await buscarDenuncia(id)
 
         if (resultBuscarID.status) {
-            // Guarda as imagens atuais: se a exclusão da denúncia falhar, os vínculos são devolvidos
-            let imagensAtuais = resultBuscarID.response.denuncia.imagem || []
-
             // Tabela intermediária: precisa apagar os vínculos antes (chave estrangeira)
-            let resultFilhosImagens = await controlerImagemDenuncias.excluirImagensIdDenuncia(id)
+            let resultFilhos = await controlerDenunciaMensagem.excluirMensagensIdDenuncia(id)
 
-            if (!resultFilhosImagens.status) {
+            if (!resultFilhos.status) {
                 return message.ERROR_INTERNAL_SEVER_MODEL // 500
             }
 
             let result = await denunciaDAO.deleteDenuncia(id)
 
             if (result === 'EM_USO') {
-                await controlerImagemDenuncias.inserirImagensDaDenuncia(Number(id), imagensAtuais)
-
                 message.DEFAULT_MESSAGE.status = false
                 message.DEFAULT_MESSAGE.status_code = 409
                 message.DEFAULT_MESSAGE.message = 'Não é possível excluir: esta denúncia está sendo usada por outros registros.'
@@ -265,8 +282,6 @@ const excluirDenuncia = async function (id) {
 
                 return message.DEFAULT_MESSAGE // 200
             } else {
-                await controlerImagemDenuncias.inserirImagensDaDenuncia(Number(id), imagensAtuais)
-
                 return message.ERROR_INTERNAL_SEVER_MODEL // 500
             }
         } else {
@@ -284,9 +299,13 @@ const normalizarDados = function (denuncia) {
     denuncia.id_tipo_denuncias = Number(denuncia.id_tipo_denuncias)
     denuncia.id_denunciante = Number(denuncia.id_denunciante)
 
-    // Remove ids de imagem repetidos na lista (se ela foi enviada)
-    if (Array.isArray(denuncia.imagem)) {
-        denuncia.imagem = controlerImagemDenuncias.normalizarListaImagens(denuncia.imagem)
+    if (Array.isArray(denuncia.mensagem)) {
+        // Remove ids de mensagem repetidos na lista
+        let idsMensagens = [...new Set(denuncia.mensagem.map(item => Number(item.id)))]
+        denuncia.mensagem = idsMensagens.map(idMensagem => ({ id: idMensagem }))
+    } else {
+        // Lista não enviada: o PUT não mexe nas mensagens e o POST não vincula nenhuma
+        delete denuncia.mensagem
     }
 }
 
@@ -313,6 +332,10 @@ const validarDados = async function (denuncia) {
         message.ERROR_BAD_REQUEST.field = "[ID_DENUNCIANTE] INVÁLIDO"
         return message.ERROR_BAD_REQUEST
 
+    } else if (denuncia.mensagem !== undefined && denuncia.mensagem !== null && !Array.isArray(denuncia.mensagem)) {
+        message.ERROR_BAD_REQUEST.field = '[MENSAGEM] INVÁLIDA (envie uma lista, ex: [{ "id": 1 }], ou [] para nenhuma)'
+        return message.ERROR_BAD_REQUEST
+
     } else {
         // Confere se o tipo de denúncia e o denunciante (usuário) existem (evita erro de chave estrangeira)
         if (!await buscarRelacionado(controlerTipoDenuncia.buscarTipoDenuncia, denuncia.id_tipo_denuncias)) {
@@ -325,12 +348,20 @@ const validarDados = async function (denuncia) {
             return message.ERROR_BAD_REQUEST
         }
 
-        // "imagem" é opcional: se vier, quem valida é o controller das imagens da denúncia
-        if (denuncia.imagem !== undefined) {
-            let erroImagens = await controlerImagemDenuncias.validarListaImagens(denuncia.imagem)
+        // Confere cada mensagem da lista (quando enviada)
+        if (Array.isArray(denuncia.mensagem)) {
+            for (let item of denuncia.mensagem) {
+                if (item == null || idInvalido(item.id)) {
+                    message.ERROR_BAD_REQUEST.field = '[MENSAGEM] cada item precisa de um id válido, ex: { "id": 1 }'
+                    return message.ERROR_BAD_REQUEST
+                }
 
-            if (erroImagens) {
-                return erroImagens
+                let mensagemEncontrada = await mensagemDAO.selectByIdMensagem(item.id)
+
+                if (!mensagemEncontrada || mensagemEncontrada.length == 0) {
+                    message.ERROR_BAD_REQUEST.field = "[MENSAGEM] id " + item.id + " não encontrado"
+                    return message.ERROR_BAD_REQUEST
+                }
             }
         }
 
