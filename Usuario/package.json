@@ -1,0 +1,31 @@
+{
+  "name": "ecowayer-api-usuario",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API de autenticação e perfil de usuários EcoWayer",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "migrate:latest": "knex migrate:latest",
+    "migrate:rollback": "knex migrate:rollback"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "argon2": "^0.41.1",
+    "compression": "^1.7.4",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "knex": "^3.1.0",
+    "multer": "^2.0.2",
+    "mysql2": "^3.12.0",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
