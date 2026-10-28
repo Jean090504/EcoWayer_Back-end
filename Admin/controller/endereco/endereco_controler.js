@@ -221,9 +221,9 @@ const validarDados = async function (endereco) {
         message.ERROR_BAD_REQUEST.field = "[SIGLA] INVÁLIDA (2 letras, ex: SP)"
         return message.ERROR_BAD_REQUEST
 
-    } else if (textoInvalido(endereco.id_externo, 255)) {
-        message.ERROR_BAD_REQUEST.field = "[ID_EXTERNO] INVÁLIDO (obrigatório, máximo 255 caracteres)"
-        return message.ERROR_BAD_REQUEST
+    //} else if (textoInvalido(endereco.id_externo, 255)) {
+      //  message.ERROR_BAD_REQUEST.field = "[ID_EXTERNO] INVÁLIDO (obrigatório, máximo 255 caracteres)"
+        //return message.ERROR_BAD_REQUEST
 
     } else {
         return false

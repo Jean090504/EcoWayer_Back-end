@@ -24,6 +24,7 @@ const insertPontoColeta = async function (ponto) {
         if (Array.isArray(result) && result[0].insertId) {
             return result[0].insertId
         } else {
+            console.log('---------------')
             return false
         }
     } catch (error) {
