@@ -3,6 +3,7 @@ const db = require('../../../database/database');
 const publicColumns = ['u.id', 'u.nome', 'u.cpf', 'u.data_nascimento', 'u.id_genero', 'im.url as avatar', 'em.email', 'te.numero as telefone', 'su.status as status_conta'];
 exports.transaction = (callback) => db.transaction(callback);
 exports.findByLogin = (login, trx = db) => trx('tbl_usuario as u').leftJoin('tbl_email as em', 'em.id_usuario', 'u.id').leftJoin('tbl_telefone as te', 'te.id_usuario', 'u.id').select('u.id', 'u.senha_hash', 'u.id_status_usuario').where('em.email', login).orWhere('te.numero', login).first();
+exports.findByEmail = (email, trx = db) => trx('tbl_usuario as u').join('tbl_email as em', 'em.id_usuario', 'u.id').select('u.id', 'u.id_status_usuario', 'em.verificado').where('em.email', email).first();
 exports.findById = (id, trx = db) => trx('tbl_usuario as u').leftJoin('tbl_email as em', 'em.id_usuario', 'u.id').leftJoin('tbl_telefone as te', 'te.id_usuario', 'u.id').leftJoin('tbl_imagem as im', 'im.id', 'u.id_imagem').leftJoin('tbl_status_usuario as su', 'su.id', 'u.id_status_usuario').select([...publicColumns, 'u.senha_hash']).where('u.id', id).first();
 exports.findByContact = async (contact, trx = db) => {
   const email = await trx('tbl_email').select('id_usuario as id').where('email', contact).first();

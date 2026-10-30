@@ -8,6 +8,7 @@ const otp = require('../utils/otp');
 const { sign } = require('../utils/jwt');
 const validators = require('../utils/validators');
 const notificacao = require('../utils/notificacao');
+const { OAuth2Client } = require('google-auth-library');
 
 const bad = (message, code = 'VALIDATION_ERROR') => new AppError(message, 400, code);
 const issueCode = async (userId, contact, purpose) => {
@@ -74,6 +75,67 @@ exports.login = async (req, res) => {
   if (!user?.senha_hash || !(await verify(user.senha_hash, senha))) throw new AppError('Credenciais inválidas.', 401, 'INVALID_CREDENTIALS');
   const contacts = await dao.getVerificationState(user.id);
   if (user.id_status_usuario !== contacts.activeStatus || !contacts.emailVerified || !contacts.phoneVerified) throw new AppError('Confirme seu e-mail e telefone antes de entrar.', 403, 'ACCOUNT_UNVERIFIED');
+  res.json({ token: sign({ sub: String(user.id) }), tipo: 'Bearer', usuario: { id: user.id } });
+};
+
+exports.googleLogin = async (req, res) => {
+  const credential = req.body.credential;
+  if (typeof credential !== 'string' || !credential) throw bad('Credencial Google obrigatória.');
+  if (!process.env.GOOGLE_CLIENT_ID) throw new AppError('Autenticação Google não configurada.', 503, 'GOOGLE_NOT_CONFIGURED');
+
+  let payload;
+  try {
+    const ticket = await new OAuth2Client(process.env.GOOGLE_CLIENT_ID).verifyIdToken({ idToken: credential, audience: process.env.GOOGLE_CLIENT_ID });
+    payload = ticket.getPayload();
+  } catch {
+    throw new AppError('Credencial Google inválida ou expirada.', 401, 'INVALID_GOOGLE_CREDENTIAL');
+  }
+  if (!payload?.email || payload.email_verified !== true) throw new AppError('A conta Google precisa ter um e-mail verificado.', 401, 'UNVERIFIED_GOOGLE_EMAIL');
+
+  const email = payload.email.trim().toLowerCase();
+  let user = await dao.findByEmail(email);
+  let created = false;
+  if (!user) {
+    const { cpf, data_nascimento, id_genero, telefone } = req.body;
+    const nome = String(req.body.nome || payload.name || '').trim();
+    if (!cpf || !data_nascimento || !id_genero || !telefone) {
+      throw new AppError('Complete CPF, data de nascimento, gênero e telefone para criar sua conta.', 422, 'PROFILE_REQUIRED');
+    }
+    if (nome.length < 2 || nome.length > 255 || !validators.cpf(cpf) || !validators.phone(telefone)) throw bad('Confira nome, CPF e telefone.');
+    const dob = new Date(`${data_nascimento}T00:00:00Z`);
+    if (Number.isNaN(dob.valueOf()) || dob.toISOString().slice(0, 10) !== data_nascimento || dob >= new Date()) throw bad('Data de nascimento inválida.');
+    const genderId = Number(id_genero);
+    if (!Number.isInteger(genderId) || !(await dao.genderExists(genderId))) throw bad('Gênero inválido.');
+    const cleanCpf = String(cpf).replace(/\D/g, '');
+    const phone = String(telefone).replace(/[\s()-]/g, '');
+    try {
+      const userId = await dao.transaction(async (trx) => {
+        if (await trx('tbl_usuario').whereRaw("REPLACE(REPLACE(REPLACE(cpf, '.', ''), '-', ''), ' ', '') = ?", [cleanCpf]).first()) throw new AppError('CPF já cadastrado.', 409, 'CPF_IN_USE');
+        if (await dao.contactExists({ email, phone }, trx)) throw new AppError('E-mail ou telefone já cadastrado.', 409, 'CONTACT_IN_USE');
+        const id = await dao.create({ nome, cpf: cleanCpf, data_nascimento, id_genero: genderId, email, telefone: phone, senha_hash: null }, trx);
+        await trx('tbl_email').where({ id_usuario: id }).update({ verificado: true });
+        return id;
+      });
+      created = true;
+      user = { id: userId, id_status_usuario: (await dao.getVerificationState(userId)).activeStatus };
+    } catch (error) {
+      if (error.code === 'ER_DUP_ENTRY') throw new AppError('CPF, e-mail ou telefone já cadastrado.', 409, 'DUPLICATE_USER');
+      throw error;
+    }
+  } else if (!user.verificado) {
+    await dao.markContactVerified(email, 'email');
+    user.verificado = 1;
+  }
+
+  if (created) {
+    const phone = String(req.body.telefone).replace(/[\s()-]/g, '');
+    const dispatch = await issueCode(user.id, phone, 'telefone');
+    return res.status(202).json({ codigo: 'PHONE_VERIFICATION_REQUIRED', mensagem: 'Conta criada. Confirme o telefone para concluir o acesso.', id_usuario: user.id, notificacao_enviada: dispatch.enviado });
+  }
+
+  const contacts = await dao.getVerificationState(user.id);
+  if (user.id_status_usuario !== contacts.activeStatus) throw new AppError('Conta desativada.', 403, 'ACCOUNT_DISABLED');
+  if (!contacts.phoneVerified) throw new AppError('Confirme seu telefone antes de entrar.', 403, 'PHONE_UNVERIFIED');
   res.json({ token: sign({ sub: String(user.id) }), tipo: 'Bearer', usuario: { id: user.id } });
 };
 

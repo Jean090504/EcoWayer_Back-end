@@ -36,6 +36,8 @@ Configure `NOTIFICATION_WEBHOOK_URL` para um endpoint HTTPS que aceite `POST` JS
 
 O formato de cadastro acompanha a coleção Postman. Senhas precisam ter 10–128 caracteres, maiúscula, minúscula, número e símbolo. CPF é validado pelos dígitos verificadores. Após o cadastro, e-mail e telefone precisam ser confirmados antes do login. Os OTPs expiram em 10 minutos e aceitam até cinco tentativas.
 
+Configure `GOOGLE_CLIENT_ID` com o ID OAuth Web usado pelo frontend. `POST /auth/google` recebe `{ "credential": "<ID token>" }`; o backend valida assinatura, expiração e audiência. Para uma conta nova, envie também `cpf`, `data_nascimento` (AAAA-MM-DD), `id_genero` e `telefone`, pois são campos obrigatórios no banco. A criação responde `202` e envia OTP ao telefone; após confirmar em `/auth/verify-phone`, repetir o login Google retorna o JWT. Contas existentes são localizadas pelo e-mail verificado do Google e precisam estar ativas e com telefone confirmado.
+
 ## Imagens
 
 JPEG, PNG e WebP de até 5 MB são decodificados, redimensionados para no máximo 512×512 e armazenados como WebP. Configure `PUBLIC_BASE_URL` para gerar a URL pública; a pasta de uploads deve persistir entre reinicializações. Para múltiplas instâncias, substitua o armazenamento local por object storage.
