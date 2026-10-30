@@ -6,7 +6,7 @@
  **********************************************************************************************/
 
 const configMessages = require('../modulo/configMessages.js')
-const itemDAO = require('../../model/DAO/item.js')
+const itemDAO = require('../../model/DAO/item/item.js')
 
 const inserirNovoItem = async function (item, contentType) {
     let message = JSON.parse(JSON.stringify(configMessages))
