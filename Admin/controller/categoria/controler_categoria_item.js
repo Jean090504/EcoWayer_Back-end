@@ -8,7 +8,7 @@
 const configMessages = require('../modulo/configMessages.js')
 const categoriaItemDAO = require('../../model/DAO/categoria_item/categoria_item.js')
 const categoriaDAO = require('../../model/DAO/categoria/categoria.js')
-const itemDAO = require('../../model/DAO/item/item.js')
+const itemDAO = require('../../m "odel/DAO/item/item.js')
 
 // AJUSTE o caminho/nome conforme o seu arquivo da controller de categoria
 const controllerCategoria = require('../categoria/controller_categoria.js')

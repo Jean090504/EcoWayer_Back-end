@@ -1,25 +1,15 @@
 /***********************************************************************************************
  *  Objetivo: Arquivo responsavel pela validação, tratamento e manipulação de dados
- *            para o CRUD de alertas
- *  Local: controller/alertas/alertas_controler.js
+ *            para o CRUD de acesso
+ *  Local: controller/acesso/acesso_controler.js
  **********************************************************************************************/
 
 const configMessages = require('../modulo/configMessages.js')
-const alertasDAO = require('../../model/DAO/alertas/alertas.js')
+const acessoDAO = require('../../model/DAO/acesso/acesso.js')
 
-// Controllers das tabelas intermediárias (anúncios e denúncias do alerta).
-// Eles é que chamam os controllers de anúncio e de denúncia.
-const controlerAlertasAnuncio = require('./alertas_anuncio_controler.js')
-const controlerAlertasDenuncia = require('./alertas_denuncia_controler.js')
-
-// Controllers que já existem e fornecem os dados das chaves estrangeiras.
-// CONFIRME os caminhos e os nomes das funções exportadas (module.exports).
-const controlerIA = require('../ia/ia_controler.js')                // buscarIA
+// Controller que já existe e fornece os dados da chave estrangeira.
+// CONFIRME o caminho e o nome da função exportada (module.exports).
 const controlerUsuario = require('../usuario/usuario_controler.js') // buscarUsuario
-
-// ATENÇÃO: troque pelos valores reais do ENUM da coluna status
-// (rode: SHOW COLUMNS FROM tbl_alertas LIKE 'status';)
-const STATUS_VALIDOS = ['PENDENTE', 'EM_ANALISE', 'RESOLVIDO', 'IGNORADO']
 
 // Chama o "buscar" de outro controller e devolve só o objeto encontrado (ou null)
 const buscarRelacionado = async function (funcaoBuscar, id) {
@@ -34,7 +24,7 @@ const buscarRelacionado = async function (funcaoBuscar, id) {
     return null
 }
 
-// Na listagem, vários registros repetem a mesma IA / usuário.
+// Na listagem, vários registros repetem o mesmo usuário.
 // O cache evita consultar o mesmo registro várias vezes na mesma requisição.
 const buscarComCache = async function (cache, tipo, funcaoBuscar, id) {
     if (!cache[tipo]) {
@@ -48,66 +38,54 @@ const buscarComCache = async function (cache, tipo, funcaoBuscar, id) {
     return cache[tipo][id]
 }
 
-// Troca id_ia e id_usuario pelos objetos correspondentes e anexa os anúncios e as denúncias do alerta
-const montarAlerta = async function (alerta, cache = {}) {
-    alerta.ia = await buscarComCache(cache, 'ia', controlerIA.buscarIA, alerta.id_ia)
-    alerta.usuario = await buscarComCache(cache, 'usuario', controlerUsuario.buscarUsuario, alerta.id_usuario)
+// Converte Date do MySQL para 'YYYY-MM-DD'
+const formatarData = function (data) {
+    if (data instanceof Date && !isNaN(data.getTime())) {
+        let ano = data.getFullYear()
+        let mes = String(data.getMonth() + 1).padStart(2, '0')
+        let dia = String(data.getDate()).padStart(2, '0')
 
-    delete alerta.id_ia
-    delete alerta.id_usuario
+        return `${ano}-${mes}-${dia}`
+    }
 
-    // Tabela intermediária: o controller dos anúncios do alerta busca e anexa (alerta.anuncio)
-    await controlerAlertasAnuncio.anexarAnunciosAoAlerta(alerta)
-
-    // Denúncias: o controller das denúncias do alerta busca e anexa (alerta.denuncia)
-    await controlerAlertasDenuncia.anexarDenunciasAoAlerta(alerta)
-
-    return alerta
+    return data
 }
 
-const inserirNovoAlerta = async function (alerta, contentType) {
+// Troca id_usuario pelo objeto do usuário e formata a data
+const montarAcesso = async function (acesso, cache = {}) {
+    acesso.usuario = await buscarComCache(cache, 'usuario', controlerUsuario.buscarUsuario, acesso.id_usuario)
+    acesso.data_acesso = formatarData(acesso.data_acesso)
+
+    delete acesso.id_usuario
+
+    return acesso
+}
+
+const inserirNovoAcesso = async function (acesso, contentType) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
         if (String(contentType).toUpperCase() == 'APPLICATION/JSON') {
-            let validar = await validarDados(alerta, true)
+            let validar = await validarDados(acesso)
 
             if (validar) {
                 return validar // 400
             } else {
-                normalizarDados(alerta)
+                normalizarDados(acesso)
 
-                let idInserido = await alertasDAO.insertAlerta(alerta)
+                let idInserido = await acessoDAO.insertAcesso(acesso)
 
                 if (idInserido) {
-                    // Anúncios: o controller da intermediária grava os vínculos (lista opcional)
-                    if (Array.isArray(alerta.anuncio)) {
-                        let relacionouAnuncios = await controlerAlertasAnuncio.inserirAnunciosDoAlerta(idInserido, alerta.anuncio)
-
-                        if (!relacionouAnuncios) {
-                            return message.SUCCESS_CREATED_WARNING // 201 com alerta de dados não inseridos
-                        }
-                    }
-
-                    // Denúncias: o controller da intermediária grava os vínculos (lista opcional)
-                    if (Array.isArray(alerta.denuncia)) {
-                        let relacionouDenuncias = await controlerAlertasDenuncia.inserirDenunciasDoAlerta(idInserido, alerta.denuncia)
-
-                        if (!relacionouDenuncias) {
-                            return message.SUCCESS_CREATED_WARNING // 201 com alerta de dados não inseridos
-                        }
-                    }
-
-                    let criado = await alertasDAO.selectByIdAlerta(idInserido)
+                    let criado = await acessoDAO.selectByIdAcesso(idInserido)
 
                     message.DEFAULT_MESSAGE.status = message.SUCCESS_CREATED_ITEM.status
                     message.DEFAULT_MESSAGE.status_code = message.SUCCESS_CREATED_ITEM.status_code
                     message.DEFAULT_MESSAGE.message = message.SUCCESS_CREATED_ITEM.message
 
                     if (criado && criado.length > 0) {
-                        message.DEFAULT_MESSAGE.response = await montarAlerta(criado[0])
+                        message.DEFAULT_MESSAGE.response = await montarAcesso(criado[0])
                     } else {
-                        message.DEFAULT_MESSAGE.response = { id: idInserido, status: alerta.status }
+                        message.DEFAULT_MESSAGE.response = { id: idInserido, id_usuario: acesso.id_usuario, data_acesso: acesso.data_acesso }
                     }
 
                     return message.DEFAULT_MESSAGE // 201
@@ -124,51 +102,33 @@ const inserirNovoAlerta = async function (alerta, contentType) {
     }
 }
 
-const atualizarAlerta = async function (alerta, id, contentType) {
+const atualizarAcesso = async function (acesso, id, contentType) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
         if (String(contentType).toUpperCase() == 'APPLICATION/JSON') {
-            let resultID = await buscarAlerta(id)
+            let resultID = await buscarAcesso(id)
 
             if (resultID.status) {
-                let validar = await validarDados(alerta, false)
+                let validar = await validarDados(acesso)
 
                 if (!validar) {
-                    normalizarDados(alerta)
-                    alerta.id = Number(id)
+                    normalizarDados(acesso)
+                    acesso.id = Number(id)
 
-                    let result = await alertasDAO.updateAlerta(alerta)
+                    let result = await acessoDAO.updateAcesso(acesso)
 
                     if (result) {
-                        // Anúncios: só troca se a lista "anuncio" foi enviada (sem a lista, mantém os atuais)
-                        if (Array.isArray(alerta.anuncio)) {
-                            let trocouAnuncios = await controlerAlertasAnuncio.substituirAnunciosDoAlerta(alerta.id, alerta.anuncio)
-
-                            if (!trocouAnuncios) {
-                                return message.ERROR_INTERNAL_SEVER_MODEL // 500
-                            }
-                        }
-
-                        // Denúncias: só troca se a lista "denuncia" foi enviada (sem a lista, mantém as atuais)
-                        if (Array.isArray(alerta.denuncia)) {
-                            let trocouDenuncias = await controlerAlertasDenuncia.substituirDenunciasDoAlerta(alerta.id, alerta.denuncia)
-
-                            if (!trocouDenuncias) {
-                                return message.ERROR_INTERNAL_SEVER_MODEL // 500
-                            }
-                        }
-
-                        let atualizado = await alertasDAO.selectByIdAlerta(alerta.id)
+                        let atualizado = await acessoDAO.selectByIdAcesso(acesso.id)
 
                         message.DEFAULT_MESSAGE.status = message.SUCCESS_UPDETED_ITEM.status
                         message.DEFAULT_MESSAGE.status_code = message.SUCCESS_UPDETED_ITEM.status_code
                         message.DEFAULT_MESSAGE.message = message.SUCCESS_UPDETED_ITEM.message
 
                         if (atualizado && atualizado.length > 0) {
-                            message.DEFAULT_MESSAGE.response = await montarAlerta(atualizado[0])
+                            message.DEFAULT_MESSAGE.response = await montarAcesso(atualizado[0])
                         } else {
-                            message.DEFAULT_MESSAGE.response = { id: alerta.id, status: alerta.status }
+                            message.DEFAULT_MESSAGE.response = { id: acesso.id, id_usuario: acesso.id_usuario, data_acesso: acesso.data_acesso }
                         }
 
                         return message.DEFAULT_MESSAGE // 200
@@ -190,24 +150,24 @@ const atualizarAlerta = async function (alerta, id, contentType) {
     }
 }
 
-const listarAlertas = async function () {
+const listarAcesso = async function () {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
-        let result = await alertasDAO.selectAllAlertas()
+        let result = await acessoDAO.selectAllAcesso()
 
         if (result) {
             if (result.length > 0) {
                 let cache = {}
 
-                for (let alerta of result) {
-                    await montarAlerta(alerta, cache)
+                for (let acesso of result) {
+                    await montarAcesso(acesso, cache)
                 }
 
                 message.DEFAULT_MESSAGE.status = message.SUCCESS_RESPONSE.status
                 message.DEFAULT_MESSAGE.status_code = message.SUCCESS_RESPONSE.status_code
                 message.DEFAULT_MESSAGE.response.count = result.length
-                message.DEFAULT_MESSAGE.response.alertas = result
+                message.DEFAULT_MESSAGE.response.acessos = result
 
                 return message.DEFAULT_MESSAGE // 200
             } else {
@@ -222,7 +182,7 @@ const listarAlertas = async function () {
     }
 }
 
-const buscarAlerta = async function (id) {
+const buscarAcesso = async function (id) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
@@ -230,13 +190,13 @@ const buscarAlerta = async function (id) {
             message.ERROR_BAD_REQUEST.field = '[ID] Inválido'
             return message.ERROR_BAD_REQUEST // 400
         } else {
-            let result = await alertasDAO.selectByIdAlerta(id)
+            let result = await acessoDAO.selectByIdAcesso(id)
 
             if (result) {
                 if (result.length > 0) {
                     message.DEFAULT_MESSAGE.status = message.SUCCESS_RESPONSE.status
                     message.DEFAULT_MESSAGE.status_code = message.SUCCESS_RESPONSE.status_code
-                    message.DEFAULT_MESSAGE.response.alerta = await montarAlerta(result[0])
+                    message.DEFAULT_MESSAGE.response.acesso = await montarAcesso(result[0])
 
                     return message.DEFAULT_MESSAGE // 200
                 } else {
@@ -252,34 +212,14 @@ const buscarAlerta = async function (id) {
     }
 }
 
-const excluirAlerta = async function (id) {
+const excluirAcesso = async function (id) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
-        let resultBuscarID = await buscarAlerta(id)
+        let resultBuscarID = await buscarAcesso(id)
 
         if (resultBuscarID.status) {
-            // Guarda os vínculos atuais: se a exclusão do alerta falhar, eles são devolvidos
-            let anunciosAtuais = resultBuscarID.response.alerta.anuncio || []
-            let denunciasAtuais = resultBuscarID.response.alerta.denuncia || []
-
-            // Tabelas intermediárias: precisa apagar os vínculos antes (chave estrangeira)
-            let resultFilhosAnuncios = await controlerAlertasAnuncio.excluirAnunciosIdAlerta(id)
-
-            if (!resultFilhosAnuncios.status) {
-                return message.ERROR_INTERNAL_SEVER_MODEL // 500
-            }
-
-            // Denúncias: se falhar, devolve os anúncios que acabaram de ser desvinculados
-            let resultFilhosDenuncias = await controlerAlertasDenuncia.excluirDenunciasIdAlerta(id)
-
-            if (!resultFilhosDenuncias.status) {
-                await controlerAlertasAnuncio.inserirAnunciosDoAlerta(Number(id), anunciosAtuais)
-
-                return message.ERROR_INTERNAL_SEVER_MODEL // 500
-            }
-
-            let result = await alertasDAO.deleteAlerta(id)
+            let result = await acessoDAO.deleteAcesso(id)
 
             if (result) {
                 message.DEFAULT_MESSAGE.status = message.SUCCESS_DELETED_ITEM.status
@@ -289,9 +229,6 @@ const excluirAlerta = async function (id) {
 
                 return message.DEFAULT_MESSAGE // 200
             } else {
-                await controlerAlertasAnuncio.inserirAnunciosDoAlerta(Number(id), anunciosAtuais)
-                await controlerAlertasDenuncia.inserirDenunciasDoAlerta(Number(id), denunciasAtuais)
-
                 return message.ERROR_INTERNAL_SEVER_MODEL // 500
             }
         } else {
@@ -304,88 +241,43 @@ const excluirAlerta = async function (id) {
 }
 
 // Padroniza os dados antes de gravar
-const normalizarDados = function (alerta) {
-    alerta.motivo = String(alerta.motivo).trim()
-    alerta.status = String(alerta.status)
-    alerta.acao = String(alerta.acao).trim()
-
-    if (alerta.id_ia !== undefined) {
-        alerta.id_ia = Number(alerta.id_ia)
-    }
-
-    if (alerta.id_usuario !== undefined) {
-        alerta.id_usuario = Number(alerta.id_usuario)
-    }
-
-    // Remove ids de anúncio repetidos na lista (se ela foi enviada)
-    if (Array.isArray(alerta.anuncio)) {
-        alerta.anuncio = controlerAlertasAnuncio.normalizarListaAnuncios(alerta.anuncio)
-    }
-
-    // Remove ids de denúncia repetidos na lista (se ela foi enviada)
-    if (Array.isArray(alerta.denuncia)) {
-        alerta.denuncia = controlerAlertasDenuncia.normalizarListaDenuncias(alerta.denuncia)
-    }
+const normalizarDados = function (acesso) {
+    acesso.id_usuario = Number(acesso.id_usuario)
+    acesso.data_acesso = String(acesso.data_acesso).trim()
 }
 
 const idInvalido = function (valor) {
     return valor === undefined || valor === null || valor === '' || !Number.isInteger(Number(valor)) || Number(valor) <= 0
 }
 
+// Confere se a string é uma data real no formato YYYY-MM-DD
+const dataInvalida = function (valor) {
+    if (typeof valor !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(valor.trim())) {
+        return true
+    }
+
+    let data = new Date(valor.trim() + 'T00:00:00Z')
+
+    return isNaN(data.getTime()) || data.toISOString().slice(0, 10) !== valor.trim()
+}
+
 // Retorna false se os dados estão corretos, ou o ERROR_BAD_REQUEST indicando o campo inválido.
-// "inserir" = true exige id_ia e id_usuario; na atualização eles não são alterados.
-// "anuncio" e "denuncia" são opcionais: se vierem, quem valida são os controllers das intermediárias.
-const validarDados = async function (alerta, inserir) {
+const validarDados = async function (acesso) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
-    if (alerta.motivo == undefined || alerta.motivo == null || String(alerta.motivo).trim() == '' || Buffer.byteLength(String(alerta.motivo), 'utf8') > 65535) {
-        message.ERROR_BAD_REQUEST.field = '[MOTIVO] INVÁLIDO (obrigatório, até 65535 bytes)'
-        return message.ERROR_BAD_REQUEST
-
-    } else if (alerta.status == undefined || alerta.status == null || !STATUS_VALIDOS.includes(String(alerta.status))) {
-        message.ERROR_BAD_REQUEST.field = '[STATUS] INVÁLIDO (valores aceitos: ' + STATUS_VALIDOS.join(', ') + ')'
-        return message.ERROR_BAD_REQUEST
-
-    } else if (alerta.acao == undefined || alerta.acao == null || String(alerta.acao).trim() == '' || String(alerta.acao).trim().length > 100) {
-        message.ERROR_BAD_REQUEST.field = '[ACAO] INVÁLIDO (obrigatório, até 100 caracteres)'
-        return message.ERROR_BAD_REQUEST
-
-    } else if (inserir && idInvalido(alerta.id_ia)) {
-        message.ERROR_BAD_REQUEST.field = '[ID_IA] INVÁLIDO (obrigatório, número)'
-        return message.ERROR_BAD_REQUEST
-
-    } else if (inserir && idInvalido(alerta.id_usuario)) {
+    if (idInvalido(acesso.id_usuario)) {
         message.ERROR_BAD_REQUEST.field = '[ID_USUARIO] INVÁLIDO (obrigatório, número)'
         return message.ERROR_BAD_REQUEST
 
-    } else {
-        // Confere se IA e usuário existem (evita erro de chave estrangeira)
-        if (inserir && !await buscarRelacionado(controlerIA.buscarIA, alerta.id_ia)) {
-            message.ERROR_BAD_REQUEST.field = '[ID_IA] não encontrado'
-            return message.ERROR_BAD_REQUEST
-        }
+    } else if (dataInvalida(acesso.data_acesso)) {
+        message.ERROR_BAD_REQUEST.field = '[DATA_ACESSO] INVÁLIDA (obrigatória, formato YYYY-MM-DD)'
+        return message.ERROR_BAD_REQUEST
 
-        if (inserir && !await buscarRelacionado(controlerUsuario.buscarUsuario, alerta.id_usuario)) {
+    } else {
+        // Confere se o usuário existe (evita erro de chave estrangeira)
+        if (!await buscarRelacionado(controlerUsuario.buscarUsuario, acesso.id_usuario)) {
             message.ERROR_BAD_REQUEST.field = '[ID_USUARIO] não encontrado'
             return message.ERROR_BAD_REQUEST
-        }
-
-        // Confere a lista de anúncios (opcional)
-        if (alerta.anuncio !== undefined) {
-            let erroAnuncios = await controlerAlertasAnuncio.validarListaAnuncios(alerta.anuncio)
-
-            if (erroAnuncios) {
-                return erroAnuncios
-            }
-        }
-
-        // Confere a lista de denúncias (opcional)
-        if (alerta.denuncia !== undefined) {
-            let erroDenuncias = await controlerAlertasDenuncia.validarListaDenuncias(alerta.denuncia)
-
-            if (erroDenuncias) {
-                return erroDenuncias
-            }
         }
 
         return false
@@ -393,10 +285,10 @@ const validarDados = async function (alerta, inserir) {
 }
 
 module.exports = {
-    inserirNovoAlerta,
-    atualizarAlerta,
-    listarAlertas,
-    buscarAlerta,
-    excluirAlerta,
+    inserirNovoAcesso,
+    atualizarAcesso,
+    listarAcesso,
+    buscarAcesso,
+    excluirAcesso,
     validarDados
 }

@@ -110,6 +110,9 @@ app.use('/meraki/ecowayer/admin/avaliacao', cors(corsOptions), avaliacaoRouter)
 const itemRouter = require('./routes/item.routes.js') // Rotas responsaveis pela avaliacao
 app.use('/meraki/ecowayer/admin/item', cors(corsOptions), itemRouter)
 
+const acessoRouter = require('./routes/acesso.routes.js') //Rotas responsaveis pelos acessos dos usuarios
+app.use('/meraki/ecowayer/admin/acesso', cors(corsOptions), acessoRouter)
+
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080
