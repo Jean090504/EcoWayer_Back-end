@@ -29,7 +29,7 @@ const buscarRelacionado = async function (funcaoBuscar, id) {
     return null
 }
 
-// Troca os id_... pelos objetos das tabelas relacionadas
+// Troca os id_... pelos objetos das tabelas relacionadas (data_cadastro segue na resposta)
 const montarUsuario = async function (usuario) {
     usuario.genero = await buscarRelacionado(controlerGenero.buscarGenero, usuario.id_genero)
     usuario.status_usuario = await buscarRelacionado(controlerStatusUsuario.buscarStatusUsuario, usuario.id_status_usuario)
@@ -194,6 +194,7 @@ const buscarUsuario = async function (id) {
     }
 }
 
+// A exclusão dos filhos (tbl_acesso, tbl_anuncio) é feita em transação dentro do DAO
 const excluirUsuario = async function (id) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
@@ -219,21 +220,6 @@ const excluirUsuario = async function (id) {
     } catch (error) {
         console.log(error)
         return message.ERROR_INTERNAL_CONTROLER // 500
-    }
-}
-
-const deleteUsuarioEVinculos = async function (id) {
-    try {
-        await knexConex.transaction(async function (trx) {
-            // apague primeiro os filhos, depois o pai
-            await trx.raw(`DELETE FROM tbl_anuncio WHERE id_usuario = ?;`, [id])
-            await trx.raw(`DELETE FROM tbl_usuario WHERE id = ?;`, [id])
-        })
-
-        return true
-    } catch (error) {
-        console.log(error)
-        return false
     }
 }
 
