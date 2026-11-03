@@ -36,7 +36,7 @@ router.get('/:id', async function (request, response) {
 
     response.status(result.status_code)
     response.json(result)
-})
+} )
 
 // Atualizar item por ID
 router.put('/:id', bodyParserJSON, async function (request, response) {
