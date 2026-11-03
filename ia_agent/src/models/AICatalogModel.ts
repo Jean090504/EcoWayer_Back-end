@@ -39,14 +39,17 @@ export class AICatalogModel {
     return undefined
   }
 
+  /**
+   * Atualização controlada de ciclo de vida respeitando
+   */
   static updateLifecycleState(id: string, nextState: ModelLifecycleState): IAICatalogEntity {
     const current = this.catalogStore.get(id)
     if (!current) {
-      throw new Error(`Modelo ${id} não registado no catálogo.`)
+      throw new Error(`Modelo com ID ${id} não registado no catálogo central.`)
     }
 
     if (current.state === 'EM_PRODUCAO' && nextState === 'EM_TREINO') {
-      throw new Error('Violação de RN-001.4: Proibido rebaixar diretamente modelos em produção para treino.')
+      throw new Error('É proibido alterar ou rebaixar modelos em produção diretamente.')
     }
 
     current.state = nextState

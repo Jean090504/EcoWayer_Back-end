@@ -1,19 +1,42 @@
-export interface CorrectionEntry {
-  id: string;
-  modelId: string;
-  originalPrediction: string;
-  correctedLabel: string;
-  reason: string;
-  createdAt: Date;
-  createdBy: string;
+
+export interface ICorrectionEntryEntity {
+  correctionId: string
+  targetId: string
+  originalPrediction: string
+  adminOverride: string
+  reviewedByAdminId: string
+  appliedToRetrainingBatch: boolean
+  createdAt: string
 }
 
-export const createCorrectionEntry = (input: Partial<CorrectionEntry> = {}): CorrectionEntry => ({
-  id: input.id ?? 'correction_001',
-  modelId: input.modelId ?? 'model_001',
-  originalPrediction: input.originalPrediction ?? 'paper',
-  correctedLabel: input.correctedLabel ?? 'plastic',
-  reason: input.reason ?? 'Classificação incorreta pela IA.',
-  createdAt: input.createdAt ?? new Date(),
-  createdBy: input.createdBy ?? 'admin',
-});
+export class CorrectionEntry {
+  private static correctionsQueue: ICorrectionEntryEntity[] = []
+
+  static save(
+    correction: Omit<ICorrectionEntryEntity, 'appliedToRetrainingBatch' | 'createdAt'>
+  ): ICorrectionEntryEntity {
+    const record: ICorrectionEntryEntity = {
+      ...correction,
+      appliedToRetrainingBatch: false,
+      createdAt: new Date().toISOString()
+    }
+    this.correctionsQueue.push(record)
+    return record
+  }
+
+  static countPendingCorrections(): number {
+    return this.correctionsQueue.filter(entry => !entry.appliedToRetrainingBatch).length
+  }
+
+  static extractPendingBatch(batchSize = 500): ICorrectionEntryEntity[] {
+    const pending = this.correctionsQueue
+      .filter(entry => !entry.appliedToRetrainingBatch)
+      .slice(0, batchSize)
+
+    for (const item of pending) {
+      item.appliedToRetrainingBatch = true
+    }
+
+    return pending
+  }
+}

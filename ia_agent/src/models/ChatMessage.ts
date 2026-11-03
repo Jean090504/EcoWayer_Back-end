@@ -1,17 +1,39 @@
-export interface ChatMessage {
-  id: string;
-  conversationId: string;
-  sender: 'user' | 'assistant' | 'moderator';
-  content: string;
-  createdAt: Date;
-  moderated?: boolean;
+
+export interface IChatMessageEntity {
+  messageId: string
+  conversationId: string
+  senderId: string
+  originalContent: string
+  sanitizedContent: string
+  isBlockedByAi: boolean
+  matchedViolations: string[]
+  flaggedAsSuspicious: boolean
+  createdAt: string
 }
 
-export const createChatMessage = (input: Partial<ChatMessage> = {}): ChatMessage => ({
-  id: input.id ?? 'msg_001',
-  conversationId: input.conversationId ?? 'conversation_001',
-  sender: input.sender ?? 'user',
-  content: input.content ?? 'Mensagem inicial.',
-  createdAt: input.createdAt ?? new Date(),
-  moderated: input.moderated ?? false,
-});
+export class ChatMessage {
+  private static messagesStore = new Map<string, IChatMessageEntity>()
+
+  static create(data: Omit<IChatMessageEntity, 'createdAt'>): IChatMessageEntity {
+    const message: IChatMessageEntity = {
+      ...data,
+      createdAt: new Date().toISOString()
+    }
+    this.messagesStore.set(message.messageId, message)
+    return message
+  }
+
+  static findById(messageId: string): IChatMessageEntity | undefined {
+    return this.messagesStore.get(messageId)
+  }
+
+  static listByConversation(conversationId: string): IChatMessageEntity[] {
+    const results: IChatMessageEntity[] = []
+    for (const msg of this.messagesStore.values()) {
+      if (msg.conversationId === conversationId) {
+        results.push(msg)
+      }
+    }
+    return results
+  }
+}
