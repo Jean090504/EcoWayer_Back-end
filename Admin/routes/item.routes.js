@@ -8,7 +8,7 @@ const router = express.Router()
 const bodyParser = require('body-parser')
 const bodyParserJSON = bodyParser.json({ limit: '100kb' })
 
-const controllerItem = require('../controller/item/item_controler.js')
+const controllerItem = require('../controller/item/item.js')
 
 // Inserir novo item
 router.post('/', bodyParserJSON, async function (request, response) {
