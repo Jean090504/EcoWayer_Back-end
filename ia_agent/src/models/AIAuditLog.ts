@@ -1,51 +1,57 @@
 
-export type TargetEntityType = 'CHAT_MESSAGE' | 'ITEM_LISTING'
-export type DecisionStatus = 'APROVADO' | 'REPROVADO' | 'CONTINGENCIA_HUMANA'
+import { RowDataPacket } from 'mysql2/promise'
+import { Database } from '../config/database.js'
 
-export interface IAIAuditLogEntity {
-  auditId: string
-  targetId: string
-  targetType: TargetEntityType
-  modelVersion: string
-  verifiedByAi: boolean
-  confidenceScore: number
-  decisionOutcome: DecisionStatus
-  justificationReason: string
-  latencyMs: number
-  timestamp: string
+export interface IAlertRecord {
+  id_ia: number
+  id_usuario?: number | null
+  tipo_alvo: 'ANUNCIO_ITEM' | 'CHAT_MENSAGEM' | 'SISTEMA_IA'
+  id_alvo: string
+  motivo: string
+  status?: 'PENDENTE' | 'RESOLVIDO'
+  acao?: string | null
 }
 
 export class AIAuditLog {
-  private static auditLedger: IAIAuditLogEntity[] = []
-
-  static record(entry: IAIAuditLogEntity): void {
-    // Congela a entidade para impedir mutações posteriores nos registos de prova
-    this.auditLedger.push(Object.freeze({ ...entry }))
-  }
-
-  static getRecentLogs(limit = 100): IAIAuditLogEntity[] {
-    return this.auditLedger.slice(-limit)
-  }
-
-  static findByTargetId(targetId: string): IAIAuditLogEntity[] {
-    return this.auditLedger.filter(log => log.targetId === targetId)
+  static async record(entry: IAlertRecord): Promise<number> {
+    const sql = `
+      INSERT INTO tbl_alertas (id_ia, id_usuario, tipo_alvo, id_alvo, motivo, status, acao)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `
+    const result = await Database.execute(sql, [
+      entry.id_ia,
+      entry.id_usuario || null,
+      entry.tipo_alvo,
+      entry.id_alvo,
+      entry.motivo,
+      entry.status || 'PENDENTE',
+      entry.acao || null
+    ])
+    return result.insertId
   }
 
   /**
-   * Monitorização contínua das últimas 24 horas para deteção de desvios e rollback
+   * Monitorização das últimas 24h para avaliar necessidade de rollback
    */
-  static countDecisionsInLast24Hours(): { total: number; rejectedByAdmin: number } {
-    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000
-    const logsLastDay = this.auditLedger.filter(
-      log => new Date(log.timestamp).getTime() >= oneDayAgo
-    )
-    const contingencies = logsLastDay.filter(
-      log => log.decisionOutcome === 'CONTINGENCIA_HUMANA'
-    )
+  static async countDecisionsInLast24Hours(): Promise<{ total: number; rejectedByAdmin: number }> {
+    const sqlTotal = `
+      SELECT COUNT(*) as total FROM tbl_alertas 
+      WHERE criado_em >= NOW() - INTERVAL 1 DAY
+    `
+    const sqlOverrides = `
+      SELECT COUNT(*) as overrides FROM tbl_alertas 
+      WHERE criado_em >= NOW() - INTERVAL 1 DAY 
+      AND acao = 'INVERSAO_DECISAO_IA'
+    `
+
+    const [rowsTotal] = await Promise.all([
+      Database.query<RowDataPacket[]>(sqlTotal),
+      Database.query<RowDataPacket[]>(sqlOverrides)
+    ])
 
     return {
-      total: logsLastDay.length,
-      rejectedByAdmin: contingencies.length
+      total: rowsTotal[0]?.total || 0,
+      rejectedByAdmin: rowsTotal[0]?.overrides || 0
     }
   }
 }

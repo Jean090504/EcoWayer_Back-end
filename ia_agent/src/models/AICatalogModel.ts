@@ -1,67 +1,46 @@
 
+import { RowDataPacket } from 'mysql2/promise'
+import { Database } from '../config/database.js'
+
 export type ModelLifecycleState = 'EM_TREINO' | 'APROVADO' | 'EM_PRODUCAO' | 'DESATIVADO'
 
 export interface IAICatalogEntity {
-  id: string
-  modelName: string
-  version: string
-  datasetVersion: string
-  testedAccuracy: number
-  state: ModelLifecycleState
-  author: string
-  runtimeType: 'ONNX_RUNTIME' | 'TENSOR_FLOW_LITE'
-  createdAt: string
-  activatedAt?: string
+  id?: number
+  nome: string
+  versao: string
+  provedor: string
+  status: ModelLifecycleState
+  acuracia_aprovada?: number | null
+  id_externo?: string | null
+  criado_em?: string
 }
 
 export class AICatalogModel {
-  private static catalogStore = new Map<string, IAICatalogEntity>()
-
-  static register(entity: Omit<IAICatalogEntity, 'createdAt'>): IAICatalogEntity {
-    const record: IAICatalogEntity = {
-      ...entity,
-      createdAt: new Date().toISOString()
-    }
-    this.catalogStore.set(record.id, record)
-    return record
+  static async register(model: Omit<IAICatalogEntity, 'id' | 'criado_em'>): Promise<number> {
+    const sql = `
+      INSERT INTO tbl_ia (nome, versao, provedor, status, acuracia_aprovada, id_externo)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `
+    const result = await Database.execute(sql, [
+      model.nome,
+      model.versao,
+      model.provedor,
+      model.status,
+      model.acuracia_aprovada || null,
+      model.id_externo || null
+    ])
+    return result.insertId
   }
 
-  static findById(id: string): IAICatalogEntity | undefined {
-    return this.catalogStore.get(id)
+  static async findActiveProductionModel(): Promise<IAICatalogEntity | null> {
+    const sql = `SELECT * FROM tbl_ia WHERE status = 'EM_PRODUCAO' LIMIT 1`
+    const rows = await Database.query<RowDataPacket[]>(sql)
+    if (rows.length === 0) return null
+    return rows[0] as IAICatalogEntity
   }
 
-  static findActiveProductionModel(): IAICatalogEntity | undefined {
-    for (const model of this.catalogStore.values()) {
-      if (model.state === 'EM_PRODUCAO') {
-        return model
-      }
-    }
-    return undefined
-  }
-
-  /**
-   * Atualização controlada de ciclo de vida respeitando
-   */
-  static updateLifecycleState(id: string, nextState: ModelLifecycleState): IAICatalogEntity {
-    const current = this.catalogStore.get(id)
-    if (!current) {
-      throw new Error(`Modelo com ID ${id} não registado no catálogo central.`)
-    }
-
-    if (current.state === 'EM_PRODUCAO' && nextState === 'EM_TREINO') {
-      throw new Error('É proibido alterar ou rebaixar modelos em produção diretamente.')
-    }
-
-    current.state = nextState
-    if (nextState === 'EM_PRODUCAO') {
-      current.activatedAt = new Date().toISOString()
-    }
-
-    this.catalogStore.set(id, current)
-    return current
-  }
-
-  static listAll(): IAICatalogEntity[] {
-    return Array.from(this.catalogStore.values())
+  static async updateLifecycleState(id: number, nextState: ModelLifecycleState): Promise<void> {
+    const sql = `UPDATE tbl_ia SET status = ? WHERE id = ?`
+    await Database.execute(sql, [nextState, id])
   }
 }
