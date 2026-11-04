@@ -8,23 +8,31 @@ const knex = require('knex')
 const knexConfig = require('../../database_config_knex/knexFile.js')
 const knexConex = knex(knexConfig.development)
 
+const categoriaItemDAO = require('../categoria_item/categoria_item.js')
+
 // Insere um item e retorna o id gerado (ou false)
 const insertItem = async function (item) {
     try {
-        let sql = `INSERT INTO tbl_item (nome, descricao, pontos_base, status)
-                   VALUES (?, ?, ?, ?);`
-        let result = await knexConex.raw(sql, [
-            item.nome,
-            item.descricao,
-            Number(item.pontos_base),
-            item.status
-        ])
+        let idItem = false
 
-        if (Array.isArray(result) && result[0].affectedRows > 0) {
-            return Number(result[0].insertId)
-        }
+        await knexConex.transaction(async function (trx) {
+            let result = await trx.raw(
+                `INSERT INTO tbl_item (nome, descricao, pontos_base, status)
+                 VALUES (?, ?, ?, ?);`,
+                [item.nome, item.descricao, Number(item.pontos_base), item.status]
+            )
 
-        return false
+            if (result[0].affectedRows > 0) {
+                idItem = Number(result[0].insertId)
+
+                let vinculou = await categoriaItemDAO.insertCategoriaItem(item.id_categoria, idItem, trx)
+
+                // o throw é o que faz a transação desfazer o insert do item
+                if (!vinculou) throw new Error('Falha ao vincular o item à categoria')
+            }
+        })
+
+        return idItem
     } catch (error) {
         console.log(error)
         return false

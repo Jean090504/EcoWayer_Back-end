@@ -1,12 +1,15 @@
 /***********************************************************************************************
  *  Objetivo: Arquivo responsavel pela validação, tratamento e manipulação de dados
- *            para o CRUD de item
+ *            para o CRUD de item (com vínculo à categoria no cadastro)
  *  Autor: Maxwillian Santana
- *  Versão: 1.0
+ *  Versão: 1.1
  **********************************************************************************************/
 
 const configMessages = require('../modulo/configMessages.js')
 const itemDAO = require('../../model/DAO/item/item.js')
+const categoriaDAO = require('../../model/DAO/categoria/categoria.js')
+
+const STATUS_VALIDOS = ['ativo', 'inativo', 'em revisão']
 
 const inserirNovoItem = async function (item, contentType) {
     let message = JSON.parse(JSON.stringify(configMessages))
@@ -15,10 +18,14 @@ const inserirNovoItem = async function (item, contentType) {
         if (String(contentType).toUpperCase() == "APPLICATION/JSON") {
             let validar = await validarDados(item)
 
+            // o id_categoria só é exigido no cadastro (o update não altera o vínculo)
+            if (!validar) validar = await validarCategoria(item)
+
             if (validar) {
                 return validar // 400
             } else {
                 normalizarDados(item)
+                item.id_categoria = Number(item.id_categoria)
 
                 let idInserido = await itemDAO.insertItem(item)
 
@@ -179,9 +186,10 @@ const excluirItem = async function (id) {
 // Padroniza os dados antes de gravar
 const normalizarDados = function (item) {
     item.nome = String(item.nome).trim()
-    item.descricao = String(item.descricao).trim()
+    // descrição é opcional: vazia/ausente vira texto vazio (evita gravar a string "null")
+    item.descricao = (item.descricao === undefined || item.descricao === null) ? '' : String(item.descricao).trim()
     item.pontos_base = Number(item.pontos_base)
-    item.status = String(item.status).trim()
+    item.status = String(item.status).trim().toLowerCase()
 }
 
 const textoInvalido = function (valor, maximo) {
@@ -195,21 +203,42 @@ const validarDados = async function (item) {
         message.ERROR_BAD_REQUEST.field = "[NOME] INVÁLIDO (obrigatório, máximo 45 caracteres)"
         return message.ERROR_BAD_REQUEST
 
-    } else if (textoInvalido(item.descricao, 500)) {
-        message.ERROR_BAD_REQUEST.field = "[DESCRICAO] INVÁLIDA (obrigatória, máximo 500 caracteres)"
+    } else if (item.descricao !== undefined && item.descricao !== null && String(item.descricao).trim().length > 500) {
+        message.ERROR_BAD_REQUEST.field = "[DESCRICAO] INVÁLIDA (máximo 500 caracteres)"
         return message.ERROR_BAD_REQUEST
 
     } else if (item.pontos_base === undefined || item.pontos_base === null || item.pontos_base === '' || !Number.isInteger(Number(item.pontos_base)) || Number(item.pontos_base) < 0) {
         message.ERROR_BAD_REQUEST.field = "[PONTOS_BASE] INVÁLIDO (número inteiro maior ou igual a 0)"
         return message.ERROR_BAD_REQUEST
 
-    } else if (textoInvalido(item.status, 45)) {
-        message.ERROR_BAD_REQUEST.field = "[STATUS] INVÁLIDO (obrigatório, máximo 45 caracteres)"
+    } else if (textoInvalido(item.status, 45) || !STATUS_VALIDOS.includes(String(item.status).trim().toLowerCase())) {
+        message.ERROR_BAD_REQUEST.field = "[STATUS] INVÁLIDO (use: ativo, inativo ou em revisão)"
         return message.ERROR_BAD_REQUEST
 
     } else {
         return false
     }
+}
+
+// Valida a categoria do vínculo (usada só no cadastro)
+const validarCategoria = async function (item) {
+    let message = JSON.parse(JSON.stringify(configMessages))
+
+    if (item.id_categoria === undefined || item.id_categoria === null || item.id_categoria === '' ||
+        !Number.isInteger(Number(item.id_categoria)) || Number(item.id_categoria) <= 0) {
+        message.ERROR_BAD_REQUEST.field = "[ID_CATEGORIA] INVÁLIDO"
+        return message.ERROR_BAD_REQUEST
+    }
+
+    // Confere se a categoria existe (evita erro de chave estrangeira)
+    let categoria = await categoriaDAO.selectByIdCategoria(Number(item.id_categoria))
+
+    if (!categoria || categoria.length == 0) {
+        message.ERROR_BAD_REQUEST.field = "[ID_CATEGORIA] não encontrado"
+        return message.ERROR_BAD_REQUEST
+    }
+
+    return false
 }
 
 module.exports = {
