@@ -8,6 +8,7 @@ const knex = require('knex')
 const knexConfig = require('../../database_config_knex/knexFile.js')
 const knexConex = knex(knexConfig.development)
 
+// data_cadastro não entra no INSERT: o banco preenche com CURRENT_TIMESTAMP
 const insertUsuario = async function (usuario) {
     try {
         let sql = `INSERT INTO tbl_usuario
@@ -34,6 +35,7 @@ const insertUsuario = async function (usuario) {
     }
 }
 
+// data_cadastro também não entra no UPDATE: a data do cadastro não deve mudar
 const updateUsuario = async function (usuario) {
     try {
         let sql = `UPDATE tbl_usuario SET
@@ -65,6 +67,7 @@ const selectByIdUsuario = async function (id) {
     try {
         let sql = `SELECT id, nome, cpf,
                           DATE_FORMAT(data_nascimento, '%Y-%m-%d') AS data_nascimento,
+                          DATE_FORMAT(data_cadastro, '%Y-%m-%d %H:%i:%s') AS data_cadastro,
                           id_imagem, id_genero, id_status_usuario, id_nivel_impacto
                    FROM tbl_usuario WHERE id = ?;`
         let result = await knexConex.raw(sql, [id])
@@ -79,22 +82,29 @@ const selectAllUsuario = async function () {
     try {
         let sql = `SELECT id, nome, cpf,
                           DATE_FORMAT(data_nascimento, '%Y-%m-%d') AS data_nascimento,
+                          DATE_FORMAT(data_cadastro, '%Y-%m-%d %H:%i:%s') AS data_cadastro,
                           id_imagem, id_genero, id_status_usuario, id_nivel_impacto
                    FROM tbl_usuario ORDER BY id DESC;`
         let result = await knexConex.raw(sql)
 
         return Array.isArray(result) ? result[0] : false
     } catch (error) {
+        console.log(error)
         return false
     }
 }
 
+// Apaga primeiro os filhos (tbl_acesso, tbl_anuncio) e depois o usuário, em transação.
+// Se existir outra tabela com FK para tbl_usuario, inclua o DELETE dela antes do último.
 const deleteUsuario = async function (id) {
     try {
-        let sql = `DELETE FROM tbl_usuario WHERE id = ?;`
-        let result = await knexConex.raw(sql, [id])
+        await knexConex.transaction(async function (trx) {
+            await trx.raw(`DELETE FROM tbl_acesso WHERE id_usuario = ?;`, [id])
+            await trx.raw(`DELETE FROM tbl_anuncio WHERE id_usuario = ?;`, [id])
+            await trx.raw(`DELETE FROM tbl_usuario WHERE id = ?;`, [id])
+        })
 
-        return result ? true : false
+        return true
     } catch (error) {
         console.log(error)
         return false
