@@ -1,7 +1,7 @@
 const mysql = require('mysql2/promise');
 
 // Senhas candidatas (a do .env tem prioridade, se existir)
-const senhas = [process.env.DB_PASSWORD, 'bcd127', '12345678'].filter(Boolean);
+const senhas = [process.env.DB_PASSWORD, 'bcd127', '12345678', '152500aszX@_'].filter(Boolean);
 
 const baseConfig = {
   host: 'localhost',
