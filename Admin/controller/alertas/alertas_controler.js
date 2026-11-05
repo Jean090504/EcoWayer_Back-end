@@ -9,8 +9,8 @@ const alertasDAO = require('../../model/DAO/alertas/alertas.js')
 
 const controlerUsuario = require('../usuario/usuario_controler.js') // buscarUsuario
 const controlerIa = require('../ia/ia_controler.js') // buscarIa
-const controlerAlertasAnuncio = require('./alertas_anuncio_controler.js') // NOVO: relação alerta <-> anúncio
-
+const controlerAlertasAnuncio = require('./alertas_anuncio_controler.js') // relação alerta <-> anúncio
+const controlerAlertasMensagens = require('./alertas_mensagnes_controler.js') // relação alerta <-> mensagem
 
 // Chama o "buscar" de outro controller e devolve só o objeto encontrado (ou null)
 const buscarRelacionado = async function (funcaoBuscar, id) {
@@ -39,7 +39,7 @@ const buscarComCache = async function (cache, tipo, funcaoBuscar, id) {
     return cache[tipo][id]
 }
 
-// Troca id_ia e id_usuario pelos objetos correspondentes e anexa a lista de anúncios
+// Troca id_ia e id_usuario pelos objetos correspondentes e anexa as listas de anúncios e mensagens
 const montarAlerta = async function (alerta, cache = {}) {
     alerta.ia = await buscarComCache(cache, 'ia', controlerIa.buscarIA, alerta.id_ia)
     alerta.usuario = await buscarComCache(cache, 'usuario', controlerUsuario.buscarUsuario, alerta.id_usuario)
@@ -47,8 +47,9 @@ const montarAlerta = async function (alerta, cache = {}) {
     delete alerta.id_ia
     delete alerta.id_usuario
 
-    // NOVO: alerta.anuncio = [ {...}, {...} ] (lista vazia se o alerta não tem anúncio)
+    // alerta.anuncio = [ {...} ] e alerta.mensagem = [ {...} ] (listas vazias se não houver vínculo)
     await controlerAlertasAnuncio.anexarAnunciosAoAlerta(alerta)
+    await controlerAlertasMensagens.anexarMensagensAoAlerta(alerta)
 
     return alerta
 }
@@ -63,7 +64,7 @@ const inserirNovoAlerta = async function (alerta, contentType) {
             if (validar) {
                 return validar // 400
             } else {
-                // NOVO: "anuncio" é opcional. Se vier, valida e remove ids repetidos
+                // "anuncio" é opcional. Se vier, valida e remove ids repetidos
                 let anuncios = []
 
                 if (alerta.anuncio !== undefined) {
@@ -76,25 +77,46 @@ const inserirNovoAlerta = async function (alerta, contentType) {
                     anuncios = controlerAlertasAnuncio.normalizarListaAnuncios(alerta.anuncio)
                 }
 
-                // O DAO do alerta não deve receber o campo "anuncio"
+                // "mensagem" também é opcional
+                let mensagens = []
+
+                if (alerta.mensagem !== undefined) {
+                    let validarMensagens = await controlerAlertasMensagens.validarListaMensagens(alerta.mensagem)
+
+                    if (validarMensagens) {
+                        return validarMensagens // 400
+                    }
+
+                    mensagens = controlerAlertasMensagens.normalizarListaMensagens(alerta.mensagem)
+                }
+
+                // O DAO do alerta não deve receber os campos "anuncio" e "mensagem"
                 delete alerta.anuncio
+                delete alerta.mensagem
 
                 normalizarDados(alerta)
 
                 let idInserido = await alertasDAO.insertAlerta(alerta)
 
                 if (idInserido) {
-                    // NOVO: grava os vínculos com os anúncios
+                    // grava os vínculos com anúncios e mensagens
+                    let gravou = true
+
                     if (anuncios.length > 0) {
-                        let gravou = await controlerAlertasAnuncio.inserirAnunciosDoAlerta(idInserido, anuncios)
+                        gravou = await controlerAlertasAnuncio.inserirAnunciosDoAlerta(idInserido, anuncios)
+                    }
 
-                        if (!gravou) {
-                            // desfaz o que foi gravado para não deixar alerta sem os anúncios
-                            await controlerAlertasAnuncio.excluirAnunciosIdAlerta(idInserido)
-                            await alertasDAO.deleteAlerta(idInserido)
+                    if (gravou && mensagens.length > 0) {
+                        gravou = await controlerAlertasMensagens.inserirMensagensDoAlerta(idInserido, mensagens)
+                    }
 
-                            return message.ERROR_INTERNAL_SEVER_MODEL // 500
-                        }
+                    if (!gravou) {
+                        // desfaz o que foi gravado para não deixar alerta incompleto
+                        await controlerAlertasAnuncio.excluirAnunciosIdAlerta(idInserido)
+                        await controlerAlertasMensagens.excluirMensagensIdAlerta(idInserido)
+                        await alertasDAO.deleteAlerta(idInserido)
+
+                        return message.ERROR_INTERNAL_SEVER_MODEL // 500
                     }
 
                     let criado = await alertasDAO.selectByIdAlerta(idInserido)
@@ -113,7 +135,8 @@ const inserirNovoAlerta = async function (alerta, contentType) {
                             acao: alerta.acao,
                             id_ia: alerta.id_ia,
                             id_usuario: alerta.id_usuario,
-                            anuncio: anuncios
+                            anuncio: anuncios,
+                            mensagem: mensagens
                         }
                     }
 
@@ -139,12 +162,13 @@ const atualizarAlerta = async function (alerta, id, contentType) {
             let resultID = await buscarAlerta(id)
 
             if (resultID.status) {
-                // No update só motivo, status, acao (e a lista de anúncios) são alterados
+                // No update só motivo, status, acao (e as listas de anúncios e mensagens) são alterados
                 let validar = await validarDados(alerta, false)
 
                 if (!validar) {
-                    // NOVO: se "anuncio" não vier no body, os vínculos atuais são mantidos
+                    // Se "anuncio" / "mensagem" não vierem no body, os vínculos atuais são mantidos (null)
                     let anuncios = null
+                    let mensagens = null
 
                     if (alerta.anuncio !== undefined) {
                         let validarAnuncios = await controlerAlertasAnuncio.validarListaAnuncios(alerta.anuncio)
@@ -156,7 +180,18 @@ const atualizarAlerta = async function (alerta, id, contentType) {
                         anuncios = controlerAlertasAnuncio.normalizarListaAnuncios(alerta.anuncio)
                     }
 
+                    if (alerta.mensagem !== undefined) {
+                        let validarMensagens = await controlerAlertasMensagens.validarListaMensagens(alerta.mensagem)
+
+                        if (validarMensagens) {
+                            return validarMensagens // 400
+                        }
+
+                        mensagens = controlerAlertasMensagens.normalizarListaMensagens(alerta.mensagem)
+                    }
+
                     delete alerta.anuncio
+                    delete alerta.mensagem
 
                     normalizarDados(alerta)
                     alerta.id = Number(id)
@@ -164,11 +199,19 @@ const atualizarAlerta = async function (alerta, id, contentType) {
                     let result = await alertasDAO.updateAlerta(alerta)
 
                     if (result) {
-                        // NOVO: troca os vínculos antigos pela lista nova
+                        // troca os vínculos antigos pela lista nova
                         if (anuncios !== null) {
-                            let gravou = await controlerAlertasAnuncio.substituirAnunciosDoAlerta(alerta.id, anuncios)
+                            let gravouAnuncios = await controlerAlertasAnuncio.substituirAnunciosDoAlerta(alerta.id, anuncios)
 
-                            if (!gravou) {
+                            if (!gravouAnuncios) {
+                                return message.ERROR_INTERNAL_SEVER_MODEL // 500
+                            }
+                        }
+
+                        if (mensagens !== null) {
+                            let gravouMensagens = await controlerAlertasMensagens.substituirMensagensDoAlerta(alerta.id, mensagens)
+
+                            if (!gravouMensagens) {
                                 return message.ERROR_INTERNAL_SEVER_MODEL // 500
                             }
                         }
@@ -278,10 +321,11 @@ const excluirAlerta = async function (id) {
         let resultBuscarID = await buscarAlerta(id)
 
         if (resultBuscarID.status) {
-            // NOVO: remove primeiro os vínculos (filha) para não dar erro de chave estrangeira.
-            // O resultado é ignorado de propósito: se o alerta não tinha anúncio, não há o que apagar.
+            // Remove primeiro os vínculos (filhas) para não dar erro de chave estrangeira.
+            // O resultado é ignorado de propósito: se o alerta não tinha vínculos, não há o que apagar.
             // Se der erro real, o deleteAlerta abaixo falha e cai no 500.
             await controlerAlertasAnuncio.excluirAnunciosIdAlerta(Number(id))
+            await controlerAlertasMensagens.excluirMensagensIdAlerta(Number(id))
 
             let result = await alertasDAO.deleteAlerta(id)
 
