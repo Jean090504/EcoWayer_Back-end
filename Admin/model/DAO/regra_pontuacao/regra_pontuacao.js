@@ -23,6 +23,7 @@ const SELECT_BASE = `
            c.pontos            as categoria_pontos,
            c.img               as categoria_img,
            c.cor               as categoria_cor,
+           c.status            as categoria_status,
            c.id_tipo_categoria as categoria_id_tipo_categoria
       from tbl_regra_pontuacao r
       join tbl_categoria c on c.id = r.id_categoria`

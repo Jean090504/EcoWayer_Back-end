@@ -76,7 +76,8 @@ const formatarRegra = (r) => ({
         pontos: r.categoria_pontos,
         img: r.categoria_img,
         cor: r.categoria_cor,
-        id_tipo_categoria: r.categoria_id_tipo_categoria
+        id_tipo_categoria: r.categoria_id_tipo_categoria,
+        status: r.categoria_status
     }
 })
 

@@ -113,7 +113,6 @@ app.use('/meraki/ecowayer/admin/item', cors(corsOptions), itemRouter)
 const acessoRouter = require('./routes/acesso.routes.js') //Rotas responsaveis pelos acessos dos usuarios
 app.use('/meraki/ecowayer/admin/acesso', cors(corsOptions), acessoRouter)
 
-
 const regraPontuacaoRoutes = require('./routes/regra_pontuacao.routes.js') // Rotas responsaveis pelas regras de pontuação
 app.use('/meraki/ecowayer/admin/regra-pontuacao', regraPontuacaoRoutes)
 // ------------------------------------------------
