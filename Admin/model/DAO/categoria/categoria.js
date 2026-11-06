@@ -2,7 +2,7 @@
  * Objetivo: Arquivo responsável pelo CRUD no Banco de dados MySQL na tabela Categoria
  *           (inclui a tabela intermediária tbl_categoria_item como filha da categoria)
  * Autor : Maxwillian
- * Versão :1.1
+ * Versão :1.2
 **************************************************************************************/
 
 const knex = require('knex')
@@ -28,12 +28,13 @@ const insertCategoria = async function (categoria) {
         let idInserido = false
 
         await knexConex.transaction(async function (trx) {
-            let sql = `INSERT INTO tbl_categoria (nome, pontos, id_tipo_categoria, img) VALUES (?, ?, ?, ?);`
+            let sql = `INSERT INTO tbl_categoria (nome, pontos, id_tipo_categoria, img, status) VALUES (?, ?, ?, ?, ?);`
             let result = await trx.raw(sql, [
                 categoria.nome,
                 categoria.pontos,
                 categoria.id_tipo_categoria,
-                categoria.img === undefined ? null : categoria.img
+                categoria.img === undefined ? null : categoria.img,
+                categoria.status === undefined || categoria.status === null ? 'ativo' : String(categoria.status).toLowerCase()
             ])
 
             idInserido = result[0].insertId
@@ -49,6 +50,7 @@ const insertCategoria = async function (categoria) {
 }
 
 // Se "itens" vier no body (mesmo vazio), troca todos os vínculos. Se não vier, mantém os atuais.
+// O status NÃO é alterado aqui (use updateStatusCategoria).
 const updateCategoria = async function (categoria) {
     try {
         await knexConex.transaction(async function (trx) {
@@ -76,7 +78,7 @@ const updateCategoria = async function (categoria) {
 
 const selectByIdCategoria = async function (id) {
     try {
-        let sql = `SELECT c.id, c.nome, c.pontos, c.img, c.id_tipo_categoria, t.nome AS tipo_categoria
+        let sql = `SELECT c.id, c.nome, c.pontos, c.img, c.status, c.id_tipo_categoria, t.nome AS tipo_categoria
                    FROM tbl_categoria AS c
                    INNER JOIN tbl_tipo_categoria AS t ON t.id = c.id_tipo_categoria
                    WHERE c.id = ?;`
@@ -90,7 +92,7 @@ const selectByIdCategoria = async function (id) {
 
 const selectAllCategoria = async function () {
     try {
-        let sql = `SELECT c.id, c.nome, c.pontos, c.img, c.id_tipo_categoria, t.nome AS tipo_categoria
+        let sql = `SELECT c.id, c.nome, c.pontos, c.img, c.status, c.id_tipo_categoria, t.nome AS tipo_categoria
                    FROM tbl_categoria AS c
                    INNER JOIN tbl_tipo_categoria AS t ON t.id = c.id_tipo_categoria
                    ORDER BY c.nome;`
@@ -130,15 +132,61 @@ const selectItensExistentes = async function (ids) {
     }
 }
 
-// Apaga primeiro os vínculos com itens e depois a categoria, em transação.
-// Se a categoria estiver em uso (tbl_anuncio, tbl_pontos, tbl_ponto_coleta), a FK impede a exclusão.
+// Apaga regra de pontuação, vínculos, itens e a categoria, em transação.
+// Retorna: { ok: true } | { ok: false, vinculos: true, mensagem } | { ok: false }
 const deleteCategoria = async function (id) {
     try {
+        let resultado = { ok: true }
+
         await knexConex.transaction(async function (trx) {
+            const contar = async (tabela) => {
+                const r = await trx.raw(`SELECT COUNT(*) AS total FROM ${tabela} WHERE id_categoria = ?;`, [id])
+                return Number(r[0][0].total)
+            }
+
+            const anuncios = await contar('tbl_anuncio')
+            const pontosColeta = await contar('tbl_ponto_coleta')
+            const pontos = await contar('tbl_pontos')
+
+            if (anuncios > 0 || pontosColeta > 0 || pontos > 0) {
+                resultado = {
+                    ok: false,
+                    vinculos: true,
+                    mensagem: `Categoria possui vínculos e não pode ser excluída (anúncios: ${anuncios}, pontos de coleta: ${pontosColeta}, registros de pontos: ${pontos}).`
+                }
+                return // sai da transação sem apagar nada
+            }
+
+            // regra de pontuação e seus multiplicadores
+            const regras = (await trx.raw(`SELECT id FROM tbl_regra_pontuacao WHERE id_categoria = ?;`, [id]))[0].map(r => r.id)
+            if (regras.length) {
+                const marcadores = regras.map(() => '?').join(', ')
+                await trx.raw(`DELETE FROM tbl_regra_pontuacao_condicao WHERE id_regra_pontuacao IN (${marcadores});`, regras)
+                await trx.raw(`DELETE FROM tbl_regra_pontuacao WHERE id IN (${marcadores});`, regras)
+            }
+
+            // itens vinculados (ligação + itens)
+            const itens = (await trx.raw(`SELECT id_item FROM tbl_categoria_item WHERE id_categoria = ?;`, [id]))[0].map(r => r.id_item)
             await trx.raw(`DELETE FROM tbl_categoria_item WHERE id_categoria = ?;`, [id])
+            if (itens.length) {
+                const marcadores = itens.map(() => '?').join(', ')
+                await trx.raw(`DELETE FROM tbl_item WHERE id IN (${marcadores});`, itens)
+            }
+
             await trx.raw(`DELETE FROM tbl_categoria WHERE id = ?;`, [id])
         })
 
+        return resultado
+    } catch (error) {
+        console.log(error)
+        return { ok: false }
+    }
+}
+
+// Altera somente o status da categoria ('ativo' | 'inativo')
+const updateStatusCategoria = async function (id, status) {
+    try {
+        await knexConex.raw(`UPDATE tbl_categoria SET status = ? WHERE id = ?;`, [status, id])
         return true
     } catch (error) {
         console.log(error)
@@ -153,5 +201,6 @@ module.exports = {
     selectAllCategoria,
     selectItensByCategoria,
     selectItensExistentes,
-    deleteCategoria
+    deleteCategoria,
+    updateStatusCategoria
 }

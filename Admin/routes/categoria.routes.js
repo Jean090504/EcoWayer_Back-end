@@ -50,4 +50,12 @@ router.delete('/:id', async function (request, response) {
     response.json(result)
 })
 
+// PATCH /:id   -> alterar somente o status (ativo | inativo)
+router.patch('/:id', bodyParserJSON, async function (request, response) {
+    let result = await controlerCategoria.alterarStatusCategoria(request.params.id, request.body.status, request.headers['content-type'])
+
+    response.status(result.status_code)
+    response.json(result)
+})
+
 module.exports = router

@@ -1,8 +1,8 @@
 /***********************************************************************************************
  *  Objetivo: Arquivo responsavel pela validação, tratamento e manipulação de dados
- *            para o CRUD de categoria (com img e itens vinculados)
+ *            para o CRUD de categoria (com img, status e itens vinculados)
  *  Autor: Maxwillian Santana
- *  Versão: 1.1
+ *  Versão: 1.2
  **********************************************************************************************/
 
 const configMessages = require('../modulo/configMessages.js')
@@ -42,7 +42,7 @@ const inserirNovaCategoria = async function (categoria, contentType) {
                     if (criada && criada.length > 0) {
                         message.DEFAULT_MESSAGE.response = await montarCategoria(criada[0])
                     } else {
-                        message.DEFAULT_MESSAGE.response = { id: idInserido, nome: categoria.nome, pontos: Number(categoria.pontos), img: categoria.img }
+                        message.DEFAULT_MESSAGE.response = { id: idInserido, nome: categoria.nome, pontos: Number(categoria.pontos), img: categoria.img, status: categoria.status }
                     }
 
                     return message.DEFAULT_MESSAGE // 201
@@ -94,6 +94,48 @@ const atualizarCategoria = async function (categoria, id, contentType) {
                     }
                 } else {
                     return validar // 400
+                }
+            } else {
+                return resultID // 400, 404 ou 500
+            }
+        } else {
+            return message.ERROR_CONTENT_TYPE // 415
+        }
+    } catch (error) {
+        console.log(error)
+        return message.ERROR_INTERNAL_CONTROLER // 500
+    }
+}
+
+// NOVO: altera somente o status (ativo | inativo) da categoria
+const alterarStatusCategoria = async function (id, status, contentType) {
+    let message = JSON.parse(JSON.stringify(configMessages))
+
+    try {
+        if (String(contentType).toUpperCase() == 'APPLICATION/JSON') {
+            let novoStatus = String(status ?? '').trim().toLowerCase()
+
+            if (!['ativo', 'inativo'].includes(novoStatus)) {
+                message.ERROR_BAD_REQUEST.field = '[STATUS] INVÁLIDO (ativo ou inativo)'
+                return message.ERROR_BAD_REQUEST // 400
+            }
+
+            let resultID = await buscarCategoria(id)
+
+            if (resultID.status) {
+                let result = await categoriaDAO.updateStatusCategoria(id, novoStatus)
+
+                if (result) {
+                    let atualizada = await categoriaDAO.selectByIdCategoria(id)
+
+                    message.DEFAULT_MESSAGE.status = message.SUCCESS_UPDETED_ITEM.status
+                    message.DEFAULT_MESSAGE.status_code = message.SUCCESS_UPDETED_ITEM.status_code
+                    message.DEFAULT_MESSAGE.message = message.SUCCESS_UPDETED_ITEM.message
+                    message.DEFAULT_MESSAGE.response = await montarCategoria(atualizada[0])
+
+                    return message.DEFAULT_MESSAGE // 200
+                } else {
+                    return message.ERROR_INTERNAL_SEVER_MODEL // 500
                 }
             } else {
                 return resultID // 400, 404 ou 500
@@ -175,13 +217,19 @@ const excluirCategoria = async function (id) {
         if (resultBuscarID.status) {
             let result = await categoriaDAO.deleteCategoria(id)
 
-            if (result) {
+            if (result && result.ok) {
                 message.DEFAULT_MESSAGE.status = message.SUCCESS_DELETED_ITEM.status
                 message.DEFAULT_MESSAGE.status_code = message.SUCCESS_DELETED_ITEM.status_code
                 message.DEFAULT_MESSAGE.message = message.SUCCESS_DELETED_ITEM.message
                 message.DEFAULT_MESSAGE.response = { id: Number(id) }
 
                 return message.DEFAULT_MESSAGE // 200
+            } else if (result && result.vinculos) {
+                message.DEFAULT_MESSAGE.status = false
+                message.DEFAULT_MESSAGE.status_code = 409
+                message.DEFAULT_MESSAGE.message = result.mensagem
+
+                return message.DEFAULT_MESSAGE // 409
             } else {
                 return message.ERROR_INTERNAL_SEVER_MODEL // 500
             }
@@ -205,6 +253,13 @@ const normalizarDados = function (categoria) {
         categoria.img = null
     } else {
         categoria.img = String(categoria.img).trim()
+    }
+
+    // status é opcional: padrão 'ativo'
+    if (categoria.status === undefined || categoria.status === null || String(categoria.status).trim() == '') {
+        categoria.status = 'ativo'
+    } else {
+        categoria.status = String(categoria.status).trim().toLowerCase()
     }
 
     // itens: sem repetição e como número. Se não vier no body, fica undefined (o DAO mantém os vínculos atuais)
@@ -242,6 +297,10 @@ const validarDados = async function (categoria) {
         message.ERROR_BAD_REQUEST.field = "[ITENS] INVÁLIDO (lista de ids de itens, números inteiros maiores que 0)"
         return message.ERROR_BAD_REQUEST
 
+    } else if (categoria.status !== undefined && categoria.status !== null && !['ativo', 'inativo'].includes(String(categoria.status).trim().toLowerCase())) {
+        message.ERROR_BAD_REQUEST.field = "[STATUS] INVÁLIDO (ativo ou inativo)"
+        return message.ERROR_BAD_REQUEST
+
     } else {
         // Confere se o tipo de categoria existe antes de gravar (evita erro de chave estrangeira)
         let tipo = await tipoCategoriaDAO.selectByIdTipoCategoria(categoria.id_tipo_categoria)
@@ -269,6 +328,7 @@ const validarDados = async function (categoria) {
 module.exports = {
     inserirNovaCategoria,
     atualizarCategoria,
+    alterarStatusCategoria,
     listarCategoria,
     buscarCategoria,
     excluirCategoria,
