@@ -2,13 +2,13 @@
   "name": "ecowayer-api-usuario",
   "version": "1.0.0",
   "private": true,
-  "description": "API de autenticação e perfil de usuários EcoWayer",
-  "main": "src/server.js",
+  "description": "API do módulo de usuário EcoWayer",
+  "main": "app.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "migrate:latest": "knex migrate:latest",
-    "migrate:rollback": "knex migrate:rollback"
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "db:migrate": "knex --knexfile knexfile.js migrate:latest",
+    "db:rollback": "knex --knexfile knexfile.js migrate:rollback"
   },
   "engines": {
     "node": ">=20"
@@ -18,13 +18,14 @@
     "compression": "^1.7.4",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "google-auth-library": "^11.3.2",
+    "google-auth-library": "^9.15.1",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "knex": "^3.1.0",
     "multer": "^2.0.2",
     "mysql2": "^3.12.0",
-    "sharp": "^0.33.5"
+    "sharp": "^0.33.5",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
