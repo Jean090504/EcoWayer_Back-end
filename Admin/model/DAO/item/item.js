@@ -7,10 +7,12 @@
 const knex = require('knex')
 const knexConfig = require('../../database_config_knex/knexFile.js')
 const knexConex = knex(knexConfig.development)
+const categoriaItemDAO = require('../categoria_item/categoria_item.js')
 
 const categoriaItemDAO = require('../categoria_item/categoria_item.js')
 
 // Insere um item e retorna o id gerado (ou false)
+// Insere o item e o vínculo com a categoria na mesma transação. Retorna o id do item (ou false)
 const insertItem = async function (item) {
     try {
         let idItem = false
