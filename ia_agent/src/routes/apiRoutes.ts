@@ -4,6 +4,7 @@ import { env } from '../config/env'
 import { AiInferenceModel } from '../models/AiInferenceModel'
 import { AIAuditLog } from '../models/AIAuditLog'
 import { AICatalogModel } from '../models/AICatalogModel'
+import { GeminiService } from '../services/geminiService.js'
 
 export const apiRoutes = Router()
 const inferenceEngine = new AiInferenceModel()
@@ -24,6 +25,31 @@ const requireAiToken = (req: Request, res: Response, next: NextFunction) => {
 }
 
 apiRoutes.use(requireAiToken)
+
+apiRoutes.post('/assistant/chat', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { message, history = [], audience = 'user' } = req.body
+    if (!String(message || '').trim()) {
+      res.status(400).json({ error: 'O campo message é obrigatório.' })
+      return
+    }
+    const prompt = `Você é o assistente do EcoWayer. Responda exclusivamente em português do Brasil, com educação e clareza. Fale apenas sobre a plataforma EcoWayer e não invente dados, produtos, regras ou endereços. Se o assunto for externo ao EcoWayer, explique educadamente que só pode ajudar com a plataforma. Mensagem: ${String(message).slice(0, 2000)}`
+    const contexto = audience === 'admin'
+      ? 'Você atende um administrador do EcoWayer. Oriente sobre o painel, categorias, regras de pontuação, itens, usuários, chamados, pontos de coleta e relatórios. Não sugira compras.'
+      : 'Você atende um usuário do EcoWayer. Ajude a encontrar produtos recicláveis e a entender categorias, pontos de coleta e o funcionamento da plataforma.'
+    const resposta = await GeminiService.generate(`${contexto} ${prompt}`, Array.isArray(history) ? history.slice(-10) : [])
+    res.json({ resposta, model: env.GEMINI_MODEL, provider: 'gemini' })
+  } catch (err: any) {
+    console.error('Falha temporária no assistente Gemini:', err?.message || err)
+    res.status(200).json({
+      resposta: req.body?.audience === 'admin'
+        ? 'No momento não consigo consultar a IA. Tente novamente em alguns instantes; posso ajudar com as operações do painel EcoWayer.'
+        : 'No momento não consigo consultar a IA. Tente novamente em alguns instantes; posso ajudar com produtos e com o funcionamento do EcoWayer.',
+      model: env.GEMINI_MODEL,
+      provider: 'fallback'
+    })
+  }
+})
 
 async function ensureDefaultAiModelId(): Promise<number> {
   const active = await AICatalogModel.findActiveProductionModel()

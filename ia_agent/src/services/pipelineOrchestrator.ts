@@ -153,17 +153,13 @@ export class PipelineOrchestratorService {
   }
 
   private auditDecision(decision: IOrchestrationResult): void {
-    AIAuditLog.record({
-      auditId: `audit_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-      targetId: decision.targetId,
-      targetType: 'ITEM_LISTING',
-      modelVersion: decision.modelVersion,
-      verifiedByAi: decision.verifiedByAi,
-      confidenceScore: decision.confidence,
-      decisionOutcome: decision.statusLabel,
-      justificationReason: decision.reason,
-      latencyMs: decision.latencyMs,
-      timestamp: new Date().toISOString()
+    void AIAuditLog.record({
+      id_ia: 1,
+      tipo_alvo: 'ANUNCIO_ITEM',
+      id_alvo: decision.targetId,
+      motivo: `${decision.statusLabel}: ${decision.reason}`,
+      status: decision.requiresHumanReview ? 'PENDENTE' : 'RESOLVIDO',
+      acao: decision.verifiedByAi ? 'DECISAO_IA' : 'ENCAMINHADO_REVISAO'
     })
   }
 }

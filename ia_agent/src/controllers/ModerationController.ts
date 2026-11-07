@@ -27,12 +27,12 @@ export class ModerationController {
       const evaluation = await engine.runTextModeration(sanitization.sanitizedText, abortController.signal)
       clearTimeout(timeoutHandle)
 
-      if (!evaluation.isAcceptable) {
+      if (!evaluation.isApproved) {
         res.status(200).json({
           allowed: false,
           flaggedByAi: true,
           reason: `Bloqueado: Linguagem inadequada ou tentativa de transação insegura identificada[cite: 1, 2].`,
-          violations: evaluation.matchedViolations,
+          violations: evaluation.flaggedTerms,
           sanitizedContent: sanitization.sanitizedText,
           confidence: evaluation.confidence
         })

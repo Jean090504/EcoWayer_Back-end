@@ -190,6 +190,7 @@ const normalizarDados = function (item) {
     item.descricao = (item.descricao === undefined || item.descricao === null) ? '' : String(item.descricao).trim()
     item.pontos_base = Number(item.pontos_base)
     item.status = String(item.status).trim().toLowerCase()
+    item.img = item.img ? String(item.img).trim() : null
 }
 
 const textoInvalido = function (valor, maximo) {
@@ -211,6 +212,9 @@ const validarDados = async function (item) {
         message.ERROR_BAD_REQUEST.field = "[PONTOS_BASE] INVÁLIDO (número inteiro maior ou igual a 0)"
         return message.ERROR_BAD_REQUEST
 
+    } else if (item.img !== undefined && item.img !== null && String(item.img).length > 500) {
+        message.ERROR_BAD_REQUEST.field = "[IMG] INVÁLIDA (máximo 500 caracteres)"
+        return message.ERROR_BAD_REQUEST
     } else if (textoInvalido(item.status, 45) || !STATUS_VALIDOS.includes(String(item.status).trim().toLowerCase())) {
         message.ERROR_BAD_REQUEST.field = "[STATUS] INVÁLIDO (use: ativo, inativo ou em revisão)"
         return message.ERROR_BAD_REQUEST

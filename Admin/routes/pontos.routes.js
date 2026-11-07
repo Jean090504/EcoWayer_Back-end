@@ -10,6 +10,19 @@ const bodyParserJSON = bodyParser.json()
 
 const controlerPontos = require('../controller/pontos/pontos_controler.js')
 
+// Rotas nominais precisam vir antes de /:id, pois "dashboard" não é um ID.
+router.get('/dashboard', async function (request, response) {
+    const result = await controlerPontos.buscarDashboardPontos()
+    response.status(result.status_code)
+    response.json(result)
+})
+
+router.put('/taxa', bodyParserJSON, async function (request, response) {
+    const result = await controlerPontos.atualizarTaxaConversao(request.body, request.headers['content-type'])
+    response.status(result.status_code)
+    response.json(result)
+})
+
 // POST /       -> inserir
 router.post('/', bodyParserJSON, async function (request, response) {
     let result = await controlerPontos.inserirNovoPontos(request.body, request.headers['content-type'])

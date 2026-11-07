@@ -13,6 +13,14 @@ export interface IAlertRecord {
 }
 
 export class AIAuditLog {
+  static async getRecentLogs(limit: number): Promise<RowDataPacket[]> {
+    const rows = await Database.query<RowDataPacket[]>(
+      `SELECT * FROM tbl_alertas ORDER BY criado_em DESC LIMIT ?`,
+      [limit]
+    )
+    return rows
+  }
+
   static async record(entry: IAlertRecord): Promise<number> {
     const sql = `
       INSERT INTO tbl_alertas (id_ia, id_usuario, tipo_alvo, id_alvo, motivo, status, acao)
@@ -27,6 +35,12 @@ export class AIAuditLog {
       entry.status || 'PENDENTE',
       entry.acao || null
     ])
+    if (entry.tipo_alvo === 'ANUNCIO_ITEM' && Number(entry.id_alvo) > 0) {
+      await Database.execute(
+        `INSERT INTO tbl_alertas_anuncio (id_alerta, id_anuncio) VALUES (?, ?)`,
+        [result.insertId, Number(entry.id_alvo)]
+      )
+    }
     return result.insertId
   }
 

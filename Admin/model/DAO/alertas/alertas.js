@@ -41,7 +41,7 @@ const updateAlerta = async function (alerta) {
 // Busca um registro pelo id
 const selectByIdAlerta = async function (id) {
     try {
-        let sql = `SELECT id, motivo, status, acao, id_ia, id_usuario
+        let sql = `SELECT id, motivo, status, tipo_alvo, id_alvo, acao, id_ia, id_usuario, criado_em
                    FROM tbl_alertas WHERE id = ?;`
         let result = await knexConex.raw(sql, [id])
 
@@ -55,7 +55,7 @@ const selectByIdAlerta = async function (id) {
 // Lista todos os registros (mais recente primeiro)
 const selectAllAlertas = async function () {
     try {
-        let sql = `SELECT id, motivo, status, acao, id_ia, id_usuario
+        let sql = `SELECT id, motivo, status, tipo_alvo, id_alvo, acao, id_ia, id_usuario, criado_em
                    FROM tbl_alertas ORDER BY id DESC;`
         let result = await knexConex.raw(sql)
 

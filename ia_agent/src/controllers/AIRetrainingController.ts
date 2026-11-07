@@ -23,6 +23,7 @@ export class AIRetrainingController {
       }
 
       const savedEntry = CorrectionEntry.save({
+        correctionId: `correction_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         targetId,
         originalPrediction: typeof originalPrediction === 'object' ? JSON.stringify(originalPrediction) : String(originalPrediction),
         adminOverride: typeof adminOverride === 'object' ? JSON.stringify(adminOverride) : String(adminOverride),
@@ -87,24 +88,24 @@ export class AIRetrainingController {
   /**
    * Efetiva a promoção manual do modelo aprovado para o ambiente de produção 
    */
-  static authorizeDeploy(req: Request, res: Response): void {
+  static async authorizeDeploy(req: Request, res: Response): Promise<void> {
     try {
       const { modelId } = req.body
 
-      const existingModel = AICatalogModel.findById(modelId)
+      const existingModel = await AICatalogModel.findById(modelId)
       if (!existingModel) {
         res.status(404).json({ error: `Modelo ${modelId} não encontrado no catálogo central.` })
         return
       }
 
-      if (existingModel.state !== 'APROVADO') {
+      if (existingModel.status !== 'APROVADO') {
         res.status(400).json({
           error: 'O modelo precisa estar com o estado APROVADO antes da autorização manual.'
         })
         return
       }
 
-      const deployedModel = AICatalogModel.updateLifecycleState(modelId, 'EM_PRODUCAO')
+      const deployedModel = await AICatalogModel.updateLifecycleState(modelId, 'EM_PRODUCAO')
 
       res.status(200).json({
         message: 'Autorização concedida. Modelo ativado em produção com sucesso.',

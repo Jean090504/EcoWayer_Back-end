@@ -11,6 +11,7 @@ const controlerUsuario = require('../usuario/usuario_controler.js') // buscarUsu
 const controlerIa = require('../ia/ia_controler.js') // buscarIa
 const controlerAlertasAnuncio = require('./alertas_anuncio_controler.js') // relação alerta <-> anúncio
 const controlerAlertasMensagens = require('./alertas_mensagnes_controler.js') // relação alerta <-> mensagem
+const controlerAlertasDenuncia = require('./alertas_denuncia_controler.js')
 
 // Chama o "buscar" de outro controller e devolve só o objeto encontrado (ou null)
 const buscarRelacionado = async function (funcaoBuscar, id) {
@@ -50,6 +51,7 @@ const montarAlerta = async function (alerta, cache = {}) {
     // alerta.anuncio = [ {...} ] e alerta.mensagem = [ {...} ] (listas vazias se não houver vínculo)
     await controlerAlertasAnuncio.anexarAnunciosAoAlerta(alerta)
     await controlerAlertasMensagens.anexarMensagensAoAlerta(alerta)
+    await controlerAlertasDenuncia.anexarDenunciasAoAlerta(alerta)
 
     return alerta
 }
@@ -90,9 +92,17 @@ const inserirNovoAlerta = async function (alerta, contentType) {
                     mensagens = controlerAlertasMensagens.normalizarListaMensagens(alerta.mensagem)
                 }
 
+                let denuncias = []
+                if (alerta.denuncia !== undefined) {
+                    let validarDenuncias = await controlerAlertasDenuncia.validarListaDenuncias(alerta.denuncia)
+                    if (validarDenuncias) return validarDenuncias
+                    denuncias = controlerAlertasDenuncia.normalizarListaDenuncias(alerta.denuncia)
+                }
+
                 // O DAO do alerta não deve receber os campos "anuncio" e "mensagem"
                 delete alerta.anuncio
                 delete alerta.mensagem
+                delete alerta.denuncia
 
                 normalizarDados(alerta)
 
@@ -109,11 +119,15 @@ const inserirNovoAlerta = async function (alerta, contentType) {
                     if (gravou && mensagens.length > 0) {
                         gravou = await controlerAlertasMensagens.inserirMensagensDoAlerta(idInserido, mensagens)
                     }
+                    if (gravou && denuncias.length > 0) {
+                        gravou = await controlerAlertasDenuncia.inserirDenunciasDoAlerta(idInserido, denuncias)
+                    }
 
                     if (!gravou) {
                         // desfaz o que foi gravado para não deixar alerta incompleto
                         await controlerAlertasAnuncio.excluirAnunciosIdAlerta(idInserido)
                         await controlerAlertasMensagens.excluirMensagensIdAlerta(idInserido)
+                        await controlerAlertasDenuncia.excluirDenunciasIdAlerta(idInserido)
                         await alertasDAO.deleteAlerta(idInserido)
 
                         return message.ERROR_INTERNAL_SEVER_MODEL // 500
@@ -169,6 +183,7 @@ const atualizarAlerta = async function (alerta, id, contentType) {
                     // Se "anuncio" / "mensagem" não vierem no body, os vínculos atuais são mantidos (null)
                     let anuncios = null
                     let mensagens = null
+                    let denuncias = null
 
                     if (alerta.anuncio !== undefined) {
                         let validarAnuncios = await controlerAlertasAnuncio.validarListaAnuncios(alerta.anuncio)
@@ -189,9 +204,15 @@ const atualizarAlerta = async function (alerta, id, contentType) {
 
                         mensagens = controlerAlertasMensagens.normalizarListaMensagens(alerta.mensagem)
                     }
+                    if (alerta.denuncia !== undefined) {
+                        let validarDenuncias = await controlerAlertasDenuncia.validarListaDenuncias(alerta.denuncia)
+                        if (validarDenuncias) return validarDenuncias
+                        denuncias = controlerAlertasDenuncia.normalizarListaDenuncias(alerta.denuncia)
+                    }
 
                     delete alerta.anuncio
                     delete alerta.mensagem
+                    delete alerta.denuncia
 
                     normalizarDados(alerta)
                     alerta.id = Number(id)
@@ -214,6 +235,10 @@ const atualizarAlerta = async function (alerta, id, contentType) {
                             if (!gravouMensagens) {
                                 return message.ERROR_INTERNAL_SEVER_MODEL // 500
                             }
+                        }
+                        if (denuncias !== null) {
+                            let gravouDenuncias = await controlerAlertasDenuncia.substituirDenunciasDoAlerta(alerta.id, denuncias)
+                            if (!gravouDenuncias) return message.ERROR_INTERNAL_SEVER_MODEL
                         }
 
                         let atualizado = await alertasDAO.selectByIdAlerta(alerta.id)
@@ -326,6 +351,7 @@ const excluirAlerta = async function (id) {
             // Se der erro real, o deleteAlerta abaixo falha e cai no 500.
             await controlerAlertasAnuncio.excluirAnunciosIdAlerta(Number(id))
             await controlerAlertasMensagens.excluirMensagensIdAlerta(Number(id))
+            await controlerAlertasDenuncia.excluirDenunciasIdAlerta(Number(id))
 
             let result = await alertasDAO.deleteAlerta(id)
 

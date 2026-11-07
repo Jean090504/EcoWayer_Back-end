@@ -16,6 +16,10 @@ const bodyParserJSON = bodyParser.json()
 
 const enviar = (response, resultado) => response.status(resultado.status_code).json(resultado)
 
+router.post('/calcular', bodyParserJSON, async (request, response) => {
+    enviar(response, await controller.calcularPontuacao(request.body, request.headers['content-type']))
+})
+
 // Inserir
 router.post('/', bodyParserJSON, async (request, response) => {
     const resultado = await controller.inserirRegraPontuacao(request.body, request.headers['content-type'])

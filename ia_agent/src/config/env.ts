@@ -15,6 +15,8 @@ interface AppEnvironment {
   AI_SECRET_TOKEN: string
   AI_TIMEOUT_MS: number
   MAX_FILE_SIZE_BYTES: number
+  GEMINI_API_KEY: string
+  GEMINI_MODEL: string
 }
 
 const getEnvNumber = (key: string, fallback: number): number => {
@@ -43,5 +45,7 @@ export const env: AppEnvironment = {
   DB_CONNECTION_LIMIT: getEnvNumber('DB_CONNECTION_LIMIT', 10),
   AI_SECRET_TOKEN: requireEnvString('AI_SECRET_TOKEN', 'ecowayer_secure_token_ai_2026'),
   AI_TIMEOUT_MS: getEnvNumber('AI_TIMEOUT_MS', 1500),
-  MAX_FILE_SIZE_BYTES: getEnvNumber('MAX_FILE_SIZE_BYTES', 10 * 1024 * 1024)
+  MAX_FILE_SIZE_BYTES: getEnvNumber('MAX_FILE_SIZE_BYTES', 10 * 1024 * 1024),
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
+  GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-flash-lite-latest'
 }

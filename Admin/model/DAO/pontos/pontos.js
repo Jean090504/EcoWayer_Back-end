@@ -102,10 +102,34 @@ const deletePontos = async function (id) {
     }
 }
 
+const selectDashboard = async function () {
+    const [totais] = await knexConex.raw(`
+        SELECT
+            (SELECT COUNT(*) FROM tbl_pontos) AS itensValidados,
+            COALESCE((SELECT SUM(qntd_pontos) FROM tbl_pontos), 0) AS pontosGerados,
+            (SELECT COUNT(*) FROM tbl_categoria WHERE status = 1 OR status = 'ativo') AS regrasAtivas
+    `)
+    const [regras] = await knexConex.raw(`
+        SELECT c.id, c.nome AS cat, c.pontos AS base, '#65BA69' AS cor,
+               r.id AS regraId, COALESCE(r.status, 0) AS ativo,
+               NULL AS exc, NULL AS bom, NULL AS reg
+        FROM tbl_categoria c
+        LEFT JOIN tbl_regra_pontuacao r ON r.id_categoria = c.id
+        ORDER BY c.id DESC
+    `)
+    return {
+        itensValidados: Number(totais[0]?.itensValidados || 0),
+        pontosGerados: Number(totais[0]?.pontosGerados || 0),
+        regrasAtivas: Number(totais[0]?.regrasAtivas || 0),
+        regrasPontuacao: regras || []
+    }
+}
+
 module.exports = {
     insertPontos,
     updatePontos,
     selectByIdPontos,
     selectAllPontos,
-    deletePontos
+    deletePontos,
+    selectDashboard
 }

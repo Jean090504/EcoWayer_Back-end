@@ -141,6 +141,16 @@ const categoriaExiste = async function (idCategoria) {
     }
 }
 
+const buscarCategoriaComPontos = async function (idCategoria) {
+    try {
+        const result = await knex.raw('select id, pontos from tbl_categoria where id = ?', [idCategoria])
+        return result[0]?.[0] || null
+    } catch (error) {
+        console.error('[DAO regra_pontuacao] buscarCategoriaComPontos:', error.message)
+        return null
+    }
+}
+
 module.exports = {
     insertRegraPontuacao,
     updateRegraPontuacao,
@@ -149,5 +159,6 @@ module.exports = {
     selectAllRegraPontuacao,
     selectByIdRegraPontuacao,
     selectByIdCategoria,
-    categoriaExiste
+    categoriaExiste,
+    buscarCategoriaComPontos
 }

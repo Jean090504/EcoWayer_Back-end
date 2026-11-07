@@ -9,12 +9,12 @@ export class AIAuditController {
   /**
    * Consulta os registos de auditoria recentes para visualização no painel administrativo 
    */
-  static listLogs(req: Request, res: Response): void {
+  static async listLogs(req: Request, res: Response): Promise<void> {
     try {
       const limitParam = req.query.limit ? parseInt(req.query.limit as string, 10) : 50
       const safeLimit = Math.min(Math.max(limitParam, 1), 200)
 
-      const logs = AIAuditLog.getRecentLogs(safeLimit)
+      const logs = await AIAuditLog.getRecentLogs(safeLimit)
 
       res.status(200).json({
         totalRetrieved: logs.length,
@@ -30,9 +30,9 @@ export class AIAuditController {
   /**
    * Avalia a integridade do modelo em produção nas últimas 24 horas e sinaliza necessidade de reversão 
    */
-  static getHealthMetrics(_req: Request, res: Response): void {
+  static async getHealthMetrics(_req: Request, res: Response): Promise<void> {
     try {
-      const stats24h = AIAuditLog.countDecisionsInLast24Hours()
+      const stats24h = await AIAuditLog.countDecisionsInLast24Hours()
       const rollbackStatus = retrainingService.verifyRollbackEmergency(
         stats24h.total,
         stats24h.rejectedByAdmin

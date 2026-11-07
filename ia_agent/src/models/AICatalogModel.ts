@@ -39,6 +39,14 @@ export class AICatalogModel {
     return rows[0] as IAICatalogEntity
   }
 
+  static async findById(id: number): Promise<IAICatalogEntity | null> {
+    const rows = await Database.query<RowDataPacket[]>(
+      `SELECT * FROM tbl_ia WHERE id = ? LIMIT 1`,
+      [id]
+    )
+    return rows.length > 0 ? rows[0] as IAICatalogEntity : null
+  }
+
   static async updateLifecycleState(id: number, nextState: ModelLifecycleState): Promise<void> {
     const sql = `UPDATE tbl_ia SET status = ? WHERE id = ?`
     await Database.execute(sql, [nextState, id])

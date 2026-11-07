@@ -9,8 +9,6 @@ const knexConfig = require('../../database_config_knex/knexFile.js')
 const knexConex = knex(knexConfig.development)
 const categoriaItemDAO = require('../categoria_item/categoria_item.js')
 
-const categoriaItemDAO = require('../categoria_item/categoria_item.js')
-
 // Insere um item e retorna o id gerado (ou false)
 // Insere o item e o vínculo com a categoria na mesma transação. Retorna o id do item (ou false)
 const insertItem = async function (item) {
@@ -19,9 +17,9 @@ const insertItem = async function (item) {
 
         await knexConex.transaction(async function (trx) {
             let result = await trx.raw(
-                `INSERT INTO tbl_item (nome, descricao, pontos_base, status)
-                 VALUES (?, ?, ?, ?);`,
-                [item.nome, item.descricao, Number(item.pontos_base), item.status]
+                `INSERT INTO tbl_item (nome, descricao, pontos_base, status, img)
+                 VALUES (?, ?, ?, ?, ?);`,
+                [item.nome, item.descricao, Number(item.pontos_base), item.status, item.img || null]
             )
 
             if (result[0].affectedRows > 0) {
@@ -45,13 +43,14 @@ const insertItem = async function (item) {
 const updateItem = async function (item) {
     try {
         let sql = `UPDATE tbl_item
-                   SET nome = ?, descricao = ?, pontos_base = ?, status = ?
+                   SET nome = ?, descricao = ?, pontos_base = ?, status = ?, img = ?
                    WHERE id = ?;`
         let result = await knexConex.raw(sql, [
             item.nome,
             item.descricao,
             Number(item.pontos_base),
             item.status,
+            item.img || null,
             Number(item.id)
         ])
 
@@ -84,7 +83,7 @@ const deleteItem = async function (id) {
 // Lista todos os itens (mais recentes primeiro)
 const selectAllItem = async function () {
     try {
-        let sql = `SELECT id, nome, descricao, pontos_base, status
+        let sql = `SELECT id, nome, descricao, pontos_base, status, img
                    FROM tbl_item
                    ORDER BY id DESC;`
         let result = await knexConex.raw(sql)
@@ -99,7 +98,7 @@ const selectAllItem = async function () {
 // Busca um item pelo id (lista vazia se não existir)
 const selectByIdItem = async function (id) {
     try {
-        let sql = `SELECT id, nome, descricao, pontos_base, status
+        let sql = `SELECT id, nome, descricao, pontos_base, status, img
                    FROM tbl_item
                    WHERE id = ?;`
         let result = await knexConex.raw(sql, [Number(id)])

@@ -107,7 +107,7 @@ const selectAllCategoria = async function () {
 // Itens vinculados a uma categoria (usado pelo controller para montar o objeto)
 const selectItensByCategoria = async function (idCategoria) {
     try {
-        let sql = `SELECT i.id, i.nome, i.descricao, i.pontos_base, i.status
+        let sql = `SELECT i.id, i.nome, i.descricao, i.pontos_base, i.status, i.img
                    FROM tbl_categoria_item AS ci
                    INNER JOIN tbl_item AS i ON i.id = ci.id_item
                    WHERE ci.id_categoria = ?

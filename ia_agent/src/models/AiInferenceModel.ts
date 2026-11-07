@@ -1,6 +1,8 @@
 
 export type ItemCondition = 'novo' | 'ótimo estado' | 'usado' | 'danificado'
 
+import { GeminiService } from '../services/geminiService.js'
+
 export interface ImageClassificationResult {
   category: string
   condition: ItemCondition
@@ -107,6 +109,28 @@ export class AiInferenceModel {
   ): Promise<InferenceDecision> {
     const startTime = Date.now()
     if (signal.aborted) throw new Error('TIMEOUT_EXCEEDED')
+
+    if (GeminiService.isConfigured()) {
+      try {
+        const ai = await GeminiService.analyzeListing('Anúncio', cleanText, imageBuffer)
+        const classification = imageBuffer ? {
+          category: ai.category,
+          condition: ai.condition as ItemCondition,
+          confidence: ai.confidence,
+          inferenceTimeMs: Date.now() - startTime
+        } : undefined
+        return {
+          entityId,
+          verifiedByAi: true,
+          humanReviewRequired: !ai.approved || ai.confidence < 0.85,
+          modelMetadata: { modelName: 'Gemini', modelVersion, executedAt: new Date().toISOString() },
+          moderation: { isApproved: ai.approved, reasons: ai.reasons, confidence: ai.confidence, matchedTerms: [] },
+          classification
+        }
+      } catch {
+        // Usa o pipeline local quando o Gemini falhar ou retornar JSON inválido.
+      }
+    }
 
     // Moderação de texto em tempo real
     const matchedTerms: string[] = []

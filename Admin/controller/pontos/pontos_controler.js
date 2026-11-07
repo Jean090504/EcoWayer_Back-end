@@ -6,6 +6,44 @@
 const configMessages = require('../modulo/configMessages.js')
 const pontosDAO = require('../../model/DAO/pontos/pontos.js')
 
+let taxaConversao = 1
+
+const respostaSucesso = (response) => ({
+    status: configMessages.SUCCESS_RESPONSE.status,
+    status_code: configMessages.SUCCESS_RESPONSE.status_code,
+    response
+})
+
+const buscarDashboardPontos = async function () {
+    try {
+        const dados = await pontosDAO.selectDashboard()
+        return respostaSucesso({
+            metricas: {
+                taxaConversao: { valor: taxaConversao },
+                itensValidados: { valor: dados.itensValidados },
+                pontosGerados: { valor: dados.pontosGerados },
+                regrasAtivas: { valor: dados.regrasAtivas }
+            },
+            configuracaoConversao: { multiplicador: taxaConversao },
+            regrasPontuacao: dados.regrasPontuacao
+        })
+    } catch (error) {
+        console.log(error)
+        return configMessages.ERROR_INTERNAL_SEVER_MODEL
+    }
+}
+
+const atualizarTaxaConversao = async function (dados, contentType) {
+    const valor = Number(dados?.multiplicador ?? dados?.taxa)
+    if (String(contentType).toUpperCase() !== 'APPLICATION/JSON' || !Number.isFinite(valor) || valor <= 0) {
+        const message = JSON.parse(JSON.stringify(configMessages.ERROR_BAD_REQUEST))
+        message.field = '[MULTIPLICADOR] INVÁLIDO (número maior que 0)'
+        return message
+    }
+    taxaConversao = valor
+    return respostaSucesso({ multiplicador: taxaConversao })
+}
+
 // Transforma a linha "achatada" do JOIN no JSON com as chaves estrangeiras aninhadas
 const montarPontos = function (row) {
     return {
@@ -230,5 +268,7 @@ module.exports = {
     listarPontos,
     buscarPontos,
     excluirPontos,
-    validarDados
+    validarDados,
+    buscarDashboardPontos,
+    atualizarTaxaConversao
 }

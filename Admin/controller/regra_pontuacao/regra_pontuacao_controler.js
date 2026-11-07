@@ -11,6 +11,7 @@
 const regraDAO = require('../../model/DAO/regra_pontuacao/regra_pontuacao.js')
 const regraCondicaoDAO = require('../../model/DAO/regra_pontuacao_condicao/regra_pontuacao_condicao.js')
 const controlerRegraCondicao = require('./regra_pontuacao_condicao_controler.js') // relação regra <-> condição
+const controlerCondicaoItem = require('../condicao_item/condicao_item_controler.js')
 
 // ---------------------------------------------------------------------------
 // MENSAGENS (cabeçalho padrão da API + status)
@@ -308,11 +309,39 @@ const excluirRegraPontuacao = async function (id) {
     }
 }
 
+// Calcula a pontuação oficial: pontos da categoria multiplicados pelo fator da condição.
+const calcularPontuacao = async function (body, contentType) {
+    try {
+        if (!contentTypeValido(contentType)) return resposta(MENSAGENS.ERROR_CONTENT_TYPE)
+        const idCategoria = idValido(body?.id_categoria)
+        const idCondicao = idValido(body?.id_condicao_item)
+        const multiplicador = Number(body?.multiplicador)
+        if (!idCategoria || !idCondicao || !Number.isFinite(multiplicador) || multiplicador <= 0 || multiplicador > 99.99) {
+            return resposta(MENSAGENS.ERROR_REQUIRED_FIELDS, undefined, 'Informe categoria, condição e multiplicador válido.')
+        }
+        const categoriaExiste = await regraDAO.categoriaExiste(idCategoria)
+        if (categoriaExiste !== true) return resposta(MENSAGENS.ERROR_CATEGORIA_NOT_FOUND)
+        const condicaoItem = await controlerCondicaoItem.buscarCondicaoItem(idCondicao)
+        if (!condicaoItem.status) return resposta(MENSAGENS.ERROR_REQUIRED_FIELDS, undefined, 'A condição informada não existe.')
+        const categoria = await regraDAO.buscarCategoriaComPontos(idCategoria)
+        if (!categoria) return resposta(MENSAGENS.ERROR_CATEGORIA_NOT_FOUND)
+        return resposta(MENSAGENS.SUCCESS_REQUEST, {
+            pontos_base: Number(categoria.pontos),
+            multiplicador,
+            pontos_calculados: Number((Number(categoria.pontos) * multiplicador).toFixed(2))
+        })
+    } catch (error) {
+        console.error('[Controller regra_pontuacao] calcular:', error.message)
+        return resposta(MENSAGENS.ERROR_INTERNAL_SERVER_CONTROLLER)
+    }
+}
+
 module.exports = {
     listarRegraPontuacao,
     buscarRegraPontuacao,
     inserirRegraPontuacao,
     atualizarRegraPontuacao,
     atualizarStatusRegraPontuacao,
-    excluirRegraPontuacao
+    excluirRegraPontuacao,
+    calcularPontuacao
 }
