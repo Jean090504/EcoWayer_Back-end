@@ -28,7 +28,7 @@ router.get('/', async function (request, response) {
     response.status(result.status_code)
     response.json(result)
 })
-
+//n--------
 // Buscar tipo de categoria por ID
 router.get('/:id', async function (request, response) {
     let id = request.params.id

@@ -23,7 +23,7 @@ const insertTipoCategoria = async function (tipoCategoria) {
         return false
     }
 }
-
+ // n -----
 // Atualiza o nome de um tipo de categoria (o controller já garantiu que o ID existe)
 const updateTipoCategoria = async function (tipoCategoria) {
     try {

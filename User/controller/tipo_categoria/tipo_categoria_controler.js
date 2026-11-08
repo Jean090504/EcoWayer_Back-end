@@ -14,7 +14,7 @@ const idValido = (id) =>
 // Inserir um novo tipo de categoria
 const inserirNovoTipoCategoria = async function (tipoCategoria, contentType) {
     let message = JSON.parse(JSON.stringify(configMessages))
-
+//n----
     try {
         if (String(contentType).toUpperCase() == "APPLICATION/JSON") {
             let validar = validarDados(tipoCategoria)

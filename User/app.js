@@ -22,7 +22,7 @@ app.use('/meraki/ecowayer/user/endereco',cors(corsOptions),enderecoRouter)
 
 const tipoCategoriaRouter = require('./routes/tipo_categoria.routes.js') // rotas responsaveis pelo tipo de categoria
 app.use('/meraki/ecowayer/user/tipo_categoria',cors(corsOptions),tipoCategoriaRouter)
-
+//n--------
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8070
