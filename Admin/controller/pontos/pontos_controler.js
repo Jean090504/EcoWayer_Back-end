@@ -14,9 +14,9 @@ const respostaSucesso = (response) => ({
     response
 })
 
-const buscarDashboardPontos = async function () {
+const buscarDashboardPontos = async function (periodo, grafico) {
     try {
-        const dados = await pontosDAO.selectDashboard()
+        const dados = await pontosDAO.selectDashboard(periodo, grafico)
         return respostaSucesso({
             metricas: {
                 taxaConversao: { valor: taxaConversao },
@@ -25,7 +25,10 @@ const buscarDashboardPontos = async function () {
                 regrasAtivas: { valor: dados.regrasAtivas }
             },
             configuracaoConversao: { multiplicador: taxaConversao },
-            regrasPontuacao: dados.regrasPontuacao
+            regrasPontuacao: dados.regrasPontuacao,
+            // Os dados detalhados usados pelos cards, gráfico e ranking
+            // são montados pelo DAO dentro de `dashboard`.
+            dashboard: dados.dashboard
         })
     } catch (error) {
         console.log(error)

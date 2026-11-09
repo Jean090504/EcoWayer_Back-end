@@ -115,6 +115,12 @@ app.use('/meraki/ecowayer/admin/acesso', cors(corsOptions), acessoRouter)
 
 const regraPontuacaoRoutes = require('./routes/regra_pontuacao.routes.js') // Rotas responsaveis pelas regras de pontuação
 app.use('/meraki/ecowayer/admin/regra-pontuacao', regraPontuacaoRoutes)
+
+// A Home consome o mesmo conjunto de dados do dashboard administrativo.
+const homeRouter = require('./routes/home.routes.js')
+app.use('/meraki/ecowayer/admin/home', homeRouter)
+// Alias para telas que usam o nome do recurso em vez de "home".
+app.use('/meraki/ecowayer/admin/dashboard', homeRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8080

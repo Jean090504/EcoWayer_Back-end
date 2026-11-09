@@ -12,7 +12,7 @@ const controlerPontos = require('../controller/pontos/pontos_controler.js')
 
 // Rotas nominais precisam vir antes de /:id, pois "dashboard" não é um ID.
 router.get('/dashboard', async function (request, response) {
-    const result = await controlerPontos.buscarDashboardPontos()
+    const result = await controlerPontos.buscarDashboardPontos(request.query.period, request.query.grafico)
     response.status(result.status_code)
     response.json(result)
 })
