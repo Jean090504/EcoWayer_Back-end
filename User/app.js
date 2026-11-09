@@ -37,6 +37,9 @@ app.use('/meraki/ecowayer/user/ponto_coleta',cors(corsOptions),pontoColetaRouter
 
 const materialAceitoRouter = require('./routes/material_aceito.routes.js') // rotas responsaveis pelo material aceito
 app.use('/meraki/ecowayer/user/material_aceito',cors(corsOptions),materialAceitoRouter)
+
+const tipoImagemRouter = require('./routes/tipo_imagem.routes.js')   // Rotas responsaveis pelo tipo de imagem
+app.use('/meraki/ecowayer/user/tipo-imagem', cors(corsOptions), tipoImagemRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8070
