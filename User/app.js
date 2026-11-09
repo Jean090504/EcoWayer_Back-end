@@ -25,6 +25,18 @@ app.use('/meraki/ecowayer/user/tipo_categoria',cors(corsOptions),tipoCategoriaRo
 
 const generoRouter = require('./routes/genero.routes.js') // rotas responsaveis pelo genero
 app.use('/meraki/ecowayer/user/genero',cors(corsOptions),generoRouter)
+
+const categoriaRouter = require('./routes/categoria.routes.js') // rotas responsaveis pela categoria
+app.use('/meraki/ecowayer/user/categoria',cors(corsOptions),categoriaRouter)
+
+const itemRouter = require('./routes/item.routes.js') // rotas responsaveis pelo item
+app.use('/meraki/ecowayer/user/item',cors(corsOptions),itemRouter)
+
+const pontoColetaRouter = require('./routes/ponto_coleta.routes.js') // rotas responsaveis pelo ponto de coleta
+app.use('/meraki/ecowayer/user/ponto_coleta',cors(corsOptions),pontoColetaRouter)
+
+const materialAceitoRouter = require('./routes/material_aceito.routes.js') // rotas responsaveis pelo material aceito
+app.use('/meraki/ecowayer/user/material_aceito',cors(corsOptions),materialAceitoRouter)
 // ------------------------------------------------
 
 const PORT = process.env.PORT || 8070
