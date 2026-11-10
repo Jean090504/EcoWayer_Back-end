@@ -4,8 +4,15 @@
  * -> Arquivo responsavel por iniciar a api e gerenciar suas rotas
  *********************************/
 
+try {
+    process.loadEnvFile()
+} catch {
+    // Em versões anteriores do Node, as variáveis devem ser fornecidas pelo ambiente.
+}
+
 const express = require("express")
 const cors = require("cors")
+const autenticacaoAdmin = require('./middleware/autenticacaoAdmin.js')
 const app = express();
 
 const corsOptions = {
@@ -14,6 +21,7 @@ const corsOptions = {
     allowedHeaders: ["Content-Type", "Authorization"],
 }
 app.use(cors(corsOptions))
+app.use('/meraki/ecowayer/admin', autenticacaoAdmin)
 
 // ----------------- [ Rotas da API] --------------
 

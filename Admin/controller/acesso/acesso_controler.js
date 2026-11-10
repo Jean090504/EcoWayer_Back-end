@@ -6,6 +6,9 @@
 
 const configMessages = require('../modulo/configMessages.js')
 const acessoDAO = require('../../model/DAO/acesso/acesso.js')
+const administradorDAO = require('../../model/DAO/administrador/administrador.js')
+const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
 
 // Controller que já existe e fornece os dados da chave estrangeira.
 // CONFIRME o caminho e o nome da função exportada (module.exports).
@@ -247,6 +250,60 @@ const excluirAcesso = async function (id) {
     }
 }
 
+const loginAdministrador = async function (credenciais, contentType) {
+    let message = JSON.parse(JSON.stringify(configMessages))
+
+    try {
+        if (String(contentType).toUpperCase() !== 'APPLICATION/JSON') {
+            return message.ERROR_CONTENT_TYPE
+        }
+
+        const email = String(credenciais?.email || '').trim().toLowerCase()
+        const senha = String(credenciais?.senha || '')
+
+        if (!email || !senha) {
+            message.ERROR_BAD_REQUEST.field = '[EMAIL E SENHA] OBRIGATÓRIOS'
+            return message.ERROR_BAD_REQUEST
+        }
+
+        const administradores = await administradorDAO.selectByEmailAdministrador(email)
+        const administrador = administradores?.[0]
+
+        if (!administrador || !(await bcrypt.compare(senha, administrador.senha))) {
+            return { status: false, status_code: 401, message: 'E-mail ou senha inválidos.' }
+        }
+
+        const jwtSecret = process.env.JWT_SECRET
+        if (!jwtSecret) {
+            console.error('JWT_SECRET não configurado.')
+            return message.ERROR_INTERNAL_CONTROLER
+        }
+
+        const token = jwt.sign(
+            { id: administrador.id, email: administrador.email, tipo: 'admin' },
+            jwtSecret,
+            { expiresIn: process.env.JWT_EXPIRES_IN || '1h' }
+        )
+
+        message.DEFAULT_MESSAGE.status = true
+        message.DEFAULT_MESSAGE.status_code = 200
+        message.DEFAULT_MESSAGE.message = 'Login realizado com sucesso.'
+        message.DEFAULT_MESSAGE.response = {
+            token,
+            administrador: {
+                id: administrador.id,
+                nome: administrador.nome,
+                email: administrador.email
+            }
+        }
+
+        return message.DEFAULT_MESSAGE
+    } catch (error) {
+        console.log(error)
+        return message.ERROR_INTERNAL_CONTROLER
+    }
+}
+
 // Padroniza os dados antes de gravar
 const normalizarDados = function (acesso) {
     acesso.id_usuario = Number(acesso.id_usuario)
@@ -297,5 +354,6 @@ module.exports = {
     listarAcesso,
     buscarAcesso,
     excluirAcesso,
+    loginAdministrador,
     validarDados
 }

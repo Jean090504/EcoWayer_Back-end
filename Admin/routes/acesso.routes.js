@@ -14,6 +14,14 @@ const bodyParserJSON = bodyParser.json()
 
 const controlerAcesso = require('../controller/acesso/acesso_controler.js')
 
+// POST /login -> autenticar administrador e emitir JWT
+router.post('/login', bodyParserJSON, async function (request, response) {
+    let result = await controlerAcesso.loginAdministrador(request.body, request.headers['content-type'])
+
+    response.status(result.status_code)
+    response.json(result)
+})
+
 // POST /       -> inserir
 router.post('/', bodyParserJSON, async function (request, response) {
     let result = await controlerAcesso.inserirNovoAcesso(request.body, request.headers['content-type'])

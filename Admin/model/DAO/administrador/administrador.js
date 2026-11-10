@@ -62,6 +62,21 @@ const selectAllAdministrador = async function () {
     }
 }
 
+const selectByEmailAdministrador = async function (email) {
+    try {
+        let sql = `SELECT id, nome, email, senha FROM tbl_administrador WHERE email = ? LIMIT 1;`
+        let result = await knexConex.raw(sql, [email])
+
+        if (Array.isArray(result)) {
+            return result[0]
+        } else {
+            return false
+        }
+    } catch (error) {
+        return false
+    }
+}
+
 const deleteAdministrador = async function (id) {
     try {
         let sql = `DELETE FROM tbl_administrador WHERE id = ?;`
@@ -78,5 +93,6 @@ module.exports = {
     updateAdministrador,
     selectByIdAdministrador,
     selectAllAdministrador,
+    selectByEmailAdministrador,
     deleteAdministrador
 }
