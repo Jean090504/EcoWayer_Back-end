@@ -56,15 +56,11 @@ const selectAllImagem = async function () {
     try {
         let sql = `SELECT i.id, i.url, i.id_tipo_imagem, t.tipo
                    FROM tbl_imagem i
-                   INNER JOIN tbl_tipo_imagem t ON t.id = i.id_tipo_imagem;`
+                   LEFT JOIN tbl_tipo_imagem t ON t.id = i.id_tipo_imagem;`
         let result = await knexConex.raw(sql)
-
-        if (Array.isArray(result)) {
-            return result[0]
-        } else {
-            return false
-        }
+        return Array.isArray(result) ? result[0] : false
     } catch (error) {
+        console.log(error) // mostra o erro real do MySQL
         return false
     }
 }
