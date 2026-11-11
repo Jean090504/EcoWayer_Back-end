@@ -50,7 +50,6 @@ app.use('/meraki/ecowayer/user/nivel_impacto', cors(corsOptions), nivelImpactoRo
 const imagemRouter = require('./routes/imagem.routes.js') // rotas responsaveis pela imagem
 app.use('/meraki/ecowayer/user/imagem', cors(corsOptions), imagemRouter)
 
-//----------------[]-----------
 
 const qrCodeRouter = require('./routes/qr_code.routes.js') // rotas responsaveis pelos QR Codes de entrega
 app.use('/meraki/ecowayer/user/qr_code', cors(corsOptions), qrCodeRouter)
@@ -64,12 +63,8 @@ app.use('/meraki/ecowayer/user/leitura_qr_code', cors(corsOptions), leituraQrCod
 const qrCodeVoucherRouter = require('./routes/qr_code_voucher.routes.js') // rotas responsaveis pelos vinculos QR Code x voucher
 app.use('/meraki/ecowayer/user/qr_code_voucher', cors(corsOptions), qrCodeVoucherRouter)
 
-//------------][----------]
-
 const entregaRouter = require('./routes/entrega.routes.js') // rotas responsaveis pelas entregas
 app.use('/meraki/ecowayer/user/entrega', cors(corsOptions), entregaRouter)
-
-// ------------------------------------------------
 
 const anuncioRouter = require('./routes/anuncio.routes.js') // rotas responsaveis pelos anuncios
 app.use('/meraki/ecowayer/user/anuncio', cors(corsOptions), anuncioRouter)
@@ -77,7 +72,17 @@ app.use('/meraki/ecowayer/user/anuncio', cors(corsOptions), anuncioRouter)
 const imagemAnuncioRouter = require('./routes/imagem_anuncio.routes.js') // rotas responsaveis pelas imagens dos anuncios
 app.use('/meraki/ecowayer/user/imagem_anuncio', cors(corsOptions), imagemAnuncioRouter)
 
-//----------------[]-----------
+const statusUsuarioRouter = require('./routes/status_usuario.routes.js')
+app.use('/meraki/ecowayer/user/status_usuario', statusUsuarioRouter)
+
+const usuarioRouter = require('./routes/usuario.routes.js')   // Rotas responsaveis pelo usuario
+app.use('/meraki/ecowayer/user/usuario', cors(corsOptions), usuarioRouter)
+
+const conversaRouter = require('./routes/conversa.routes.js')     // Rotas responsaveis pela conversa
+app.use('/meraki/ecowayer/user/conversa', cors(corsOptions), conversaRouter)
+
+const mensagensRouter = require('./routes/mensagens.routes.js')   // Rotas responsaveis pelas mensagens
+app.use('/meraki/ecowayer/user/mensagens', cors(corsOptions), mensagensRouter)
 
 const PORT = process.env.PORT || 8070
 app.listen(PORT, function () {
