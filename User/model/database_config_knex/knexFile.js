@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const mysql = require('mysql2/promise');
 
 // Senhas candidatas (a do .env tem prioridade, se existir)
