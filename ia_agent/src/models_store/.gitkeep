@@ -1,0 +1,3 @@
+# Mantém a pasta models_store no repositório Git.
+# Este diretório destina-se ao armazenamento local dos pesos e artefactos binários compactados (.onnx) da IA do EcoWayer (RF-005.1).
+# Os ficheiros binários compilados devem ser ignorados pelo .gitignore.

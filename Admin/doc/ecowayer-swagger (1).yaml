@@ -1,0 +1,5192 @@
+# EcoWayer API — OpenAPI 3.0.3
+# Gerado a partir de Modelo-Logico-Ecowayer.mwb (MySQL Workbench, versão atualizada em 01/10/2026) + messages.js (padrão de respostas)
+# Importar direto no Swagger Editor / Swagger UI / Postman.
+
+# ============================================================
+# OPENAPI
+# ============================================================
+openapi: 3.0.3
+info:
+  title: EcoWayer API
+  description: API do EcoWayer — marketplace gamificado de reciclagem. Documentação gerada a partir do
+    modelo lógico MySQL Workbench (Modelo-Logico-Ecowayer.mwb, atualizado em 01/10/2026) e do módulo de
+    mensagens padrão da API (messages.js), de autoria de Maxwillian Santana. Toda resposta segue o envelope
+    { status, status_code, message, response }.
+  version: 1.0.7.26
+  contact:
+    name: Maxwillian Santana
+# ============================================================
+# SERVIDORES
+# ============================================================
+servers:
+- url: https://api.ecowayer.com.br/v1
+  description: Produção (exemplo)
+- url: http://localhost:3000/v1
+  description: Desenvolvimento local
+# ============================================================
+# TAGS
+# ============================================================
+tags:
+- name: Usuarios
+  description: Cadastro de usuários, e-mails, telefones, endereços e contas
+- name: Anuncios
+  description: Anúncios de itens para venda, troca ou doação, condição do item e modalidades
+- name: Categorias
+  description: Categorias e tipos de categoria dos itens
+- name: Pagamentos
+  description: Pagamentos de anúncios em modalidade venda
+- name: Entregas
+  description: Entregas de anúncios, comprovantes e QR Codes
+- name: Avaliacoes
+  description: Avaliações do usuário sobre uma entrega
+- name: Conversas
+  description: Chat entre comprador e anunciante
+- name: Denuncias
+  description: Denúncias de anúncios/usuários
+- name: Midia
+  description: Upload e vínculo de imagens
+- name: PontoColeta
+  description: Pontos físicos de coleta, endereços e materiais aceitos
+- name: Gamificacao
+  description: Insígnias, pontos e níveis de impacto
+- name: Vouchers
+  description: Vouchers de parceiros resgatados com pontos e seus QR Codes
+- name: IA
+  description: Modelos de IA, datasets e treinamentos
+- name: Moderacao
+  description: Alertas automáticos gerados pela IA
+- name: Administradores
+  description: Contas administrativas
+# ============================================================
+# SEGURANÇA GLOBAL
+# ============================================================
+security:
+- bearerAuth: []
+# ============================================================
+# PATHS
+# ============================================================
+paths:
+  # --------------------------------------------------------
+  # USUÁRIOS
+  # --------------------------------------------------------
+  /usuarios:
+    post:
+      tags:
+      - Usuarios
+      summary: Cadastrar novo usuário
+      description: id_status_usuario e id_nivel_impacto são definidos pelo backend com valores padrão.
+        id_imagem é setado depois, via endpoint de upload de foto. cpf aceita até 18 caracteres (com ou
+        sem máscara).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsuarioInput'
+            example:
+              nome: João Silva
+              cpf: 123.456.789-01
+              data_nascimento: '2005-10-15'
+              id_genero: 1
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Usuario'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Usuarios
+      summary: Listar usuários
+      parameters:
+      - &id003
+        name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+      - &id004
+        name: limit
+        in: query
+        schema:
+          type: integer
+          default: 20
+      responses:
+        '200':
+          description: Lista de usuários
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Usuario'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /usuarios/{id}:
+    get:
+      tags:
+      - Usuarios
+      summary: Obter usuário por id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Identificador (PK)
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      $ref: '#/components/schemas/Usuario'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    put:
+      tags:
+      - Usuarios
+      summary: Atualizar dados cadastrais do usuário (nome, cpf, data_nascimento, id_genero)
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Identificador (PK)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsuarioInput'
+            example:
+              nome: João Silva
+              cpf: 123.456.789-01
+              data_nascimento: '2005-10-15'
+              id_genero: 1
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro atualizado com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Usuario'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    delete:
+      tags:
+      - Usuarios
+      summary: Remover (ou inativar) usuário
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Identificador (PK)
+      responses:
+        '200':
+          description: Removido
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    message:
+                      type: string
+                      example: Registro Deletado com um sucesso!
+                    response:
+                      type: object
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /usuarios/{idUsuario}/emails:
+    post:
+      tags:
+      - Usuarios
+      summary: Vincular e-mail ao usuário
+      description: id_usuario vem da rota. codigo_verificacao (CHAR 6) é gerado pelo backend para o fluxo
+        de verificação; o controle de tentativas/reenvio/bloqueio fica em tbl_verificacao (vinculada via
+        tbl_email_verificacao).
+      parameters:
+      - name: idUsuario
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do usuário dono do e-mail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailInput'
+            example:
+              email: joao@email.com
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Email'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /emails/{idEmail}/verificar:
+    post:
+      tags:
+      - Usuarios
+      summary: Confirmar código de verificação de e-mail
+      description: Compara o código enviado com codigo_verificacao. O backend registra tentativas, reenvio
+        e bloqueio temporário em tbl_verificacao (tbl_email_verificacao).
+      parameters:
+      - name: idEmail
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do e-mail a verificar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificacaoCodigoInput'
+            example:
+              codigo: '482913'
+      responses:
+        '200':
+          description: E-mail verificado com sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    message:
+                      type: string
+                      example: E-mail verificado com sucesso!
+                    response:
+                      type: object
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /usuarios/{idUsuario}/telefones:
+    post:
+      tags:
+      - Usuarios
+      summary: Vincular telefone ao usuário
+      description: codigo_verificacao (CHAR 6) é gerado pelo backend e enviado por SMS.
+      parameters:
+      - name: idUsuario
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do usuário dono do telefone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelefoneInput'
+            example:
+              numero: '11987654321'
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Telefone'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /telefones/{idTelefone}/verificar:
+    post:
+      tags:
+      - Usuarios
+      summary: Confirmar código de verificação de telefone (SMS)
+      description: Compara o código enviado com codigo_verificacao. O backend registra tentativas, reenvio
+        e bloqueio temporário em tbl_verificacao (tbl_telefone_verificacao).
+      parameters:
+      - name: idTelefone
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do telefone a verificar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificacaoCodigoInput'
+            example:
+              codigo: '731205'
+      responses:
+        '200':
+          description: Telefone verificado com sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    message:
+                      type: string
+                      example: Telefone verificado com sucesso!
+                    response:
+                      type: object
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /usuarios/{idUsuario}/enderecos:
+    post:
+      tags:
+      - Usuarios
+      summary: Cadastrar endereço do usuário
+      description: 'O endereço agora é independente do usuário: o backend grava o registro em tbl_endereco
+        (preenchendo id_externa) e cria o vínculo em tbl_endereco_usuario (id_usuario vem da rota), preferencialmente
+        na mesma transação.'
+      parameters:
+      - name: idUsuario
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do usuário dono do endereço
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnderecoInput'
+            example:
+              cep: 01310-100
+              rua: Av. Paulista, 1000
+              bairro: Bela Vista
+              cidade: São Paulo
+              estado: São Paulo
+              sigla: SP
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Endereco'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Usuarios
+      summary: Listar endereços do usuário
+      description: Busca via tbl_endereco_usuario (JOIN com tbl_endereco).
+      parameters:
+      - name: idUsuario
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do usuário
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Endereco'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /contas:
+    post:
+      tags:
+      - Usuarios
+      summary: Criar conta/credencial vinculada a um e-mail já cadastrado
+      description: senha é recebida em texto puro no request, mas deve ser convertida em hash pelo backend
+        antes de gravar (VARCHAR 255). Nunca retornada no response (writeOnly).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContaInput'
+            example:
+              id_email: 1
+              senha: SenhaForte123
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Conta'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  # --------------------------------------------------------
+  # CATEGORIAS
+  # --------------------------------------------------------
+  /categorias:
+    post:
+      tags:
+      - Categorias
+      summary: Cadastrar categoria (define quantos pontos ela vale)
+      security: &id001
+      - bearerAuth:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoriaInput'
+            example:
+              nome: Plástico PET
+              pontos: 10
+              id_tipo_categoria: 1
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Categoria'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Categorias
+      summary: Listar categorias
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Categoria'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /tipos-categoria:
+    post:
+      tags:
+      - Categorias
+      summary: Cadastrar tipo de categoria
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TipoCategoriaInput'
+            example:
+              nome: Reciclável
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/TipoCategoria'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Categorias
+      summary: Listar tipos de categoria
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/TipoCategoria'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  # --------------------------------------------------------
+  # ANÚNCIOS · REFERÊNCIAS
+  # --------------------------------------------------------
+  /modalidades:
+    post:
+      tags:
+      - Anuncios
+      summary: Cadastrar modalidade (venda/troca/doação)
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModalidadeInput'
+            example:
+              nome: Venda
+              id_tipo_modalidade: 1
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Modalidade'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Anuncios
+      summary: Listar modalidades
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Modalidade'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /tipos-modalidade:
+    post:
+      tags:
+      - Anuncios
+      summary: Cadastrar tipo de modalidade
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TipoModalidadeInput'
+            example:
+              tipo: Financeira
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/TipoModalidade'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Anuncios
+      summary: Listar tipos de modalidade
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/TipoModalidade'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /condicoes-item:
+    post:
+      tags:
+      - Anuncios
+      summary: 'Cadastrar condição do item (ex.: novo, usado)'
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CondicaoItemInput'
+            example:
+              nome: Usado - bom estado
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/CondicaoItem'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Anuncios
+      summary: Listar condições do item
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/CondicaoItem'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  # --------------------------------------------------------
+  # MÍDIA / DENÚNCIAS · REFERÊNCIAS
+  # --------------------------------------------------------
+  /tipos-imagem:
+    post:
+      tags:
+      - Midia
+      summary: Cadastrar tipo de imagem
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TipoImagemInput'
+            example:
+              tipo: Foto de anúncio
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/TipoImagem'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Midia
+      summary: Listar tipos de imagem
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/TipoImagem'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /tipos-denuncias:
+    post:
+      tags:
+      - Denuncias
+      summary: Cadastrar tipo de denúncia
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TipoDenunciasInput'
+            example:
+              tipo: Conteúdo impróprio
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/TipoDenuncias'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Denuncias
+      summary: Listar tipos de denúncia
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/TipoDenuncias'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  # --------------------------------------------------------
+  # USUÁRIOS · REFERÊNCIAS
+  # --------------------------------------------------------
+  /generos:
+    post:
+      tags:
+      - Usuarios
+      summary: Cadastrar gênero (tabela de referência)
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneroInput'
+            example:
+              nome: Masculino
+              sigla: M
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Genero'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Usuarios
+      summary: Listar gêneros
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Genero'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /status-usuario:
+    post:
+      tags:
+      - Usuarios
+      summary: Cadastrar status de usuário possível (tabela de referência)
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusUsuarioInput'
+            example:
+              status: ativo
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/StatusUsuario'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Usuarios
+      summary: Listar status de usuário
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/StatusUsuario'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  # --------------------------------------------------------
+  # GAMIFICAÇÃO · REFERÊNCIAS
+  # --------------------------------------------------------
+  /niveis-impacto:
+    post:
+      tags:
+      - Gamificacao
+      summary: Cadastrar nível de impacto (progresso geral do usuário no app)
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NivelImpactoInput'
+            example:
+              nome: Semente
+              numero: 1
+              meta: 10.0
+              unidade: kg
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/NivelImpacto'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Gamificacao
+      summary: Listar níveis de impacto
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/NivelImpacto'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  # --------------------------------------------------------
+  # IA / PONTOS DE COLETA · REFERÊNCIAS
+  # --------------------------------------------------------
+  /datasets:
+    post:
+      tags:
+      - IA
+      summary: Cadastrar dataset usado no treinamento da IA
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DatasetInput'
+            example:
+              nome: Dataset de resíduos v1
+              descricao: Imagens rotuladas de materiais recicláveis
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Dataset'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - IA
+      summary: Listar datasets
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Dataset'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /materiais-aceitos:
+    post:
+      tags:
+      - PontoColeta
+      summary: Cadastrar material aceito em pontos de coleta
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialAceitoInput'
+            example:
+              nome: Vidro
+              icone: https://cdn.ecowayer.com.br/icones/vidro.svg
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/MaterialAceito'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - PontoColeta
+      summary: Listar materiais aceitos
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/MaterialAceito'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /ia:
+    post:
+      tags:
+      - IA
+      summary: Cadastrar modelo de IA
+      description: 'status (ativo | inativo | treinando) e id_externo são preenchidos/atualizados pelo
+        backend a partir do provedor de IA (ex.: Azure).'
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IaInput'
+            example:
+              nome: EcoVision
+              provedor: Azure
+              versao: '1.2'
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Ia'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - IA
+      summary: Listar modelos de IA cadastrados
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Ia'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /treinamentos-ia:
+    post:
+      tags:
+      - IA
+      summary: Registrar um treinamento de IA com um dataset
+      description: status (pendente | em_andamento | concluido | erro) e id_externo são preenchidos pelo
+        backend com o retorno do processo de treinamento.
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TreinamentoIaInput'
+            example:
+              id_ia: 1
+              id_dataset: 1
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/TreinamentoIa'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  # --------------------------------------------------------
+  # GAMIFICAÇÃO
+  # --------------------------------------------------------
+  /insignias:
+    post:
+      tags:
+      - Gamificacao
+      summary: Cadastrar insígnia
+      description: 'ATENÇÃO: diferente das demais tabelas, a coluna id de tbl_insignia NÃO é AUTO_INCREMENT
+        no modelo — por isso o id é enviado manualmente no cadastro (funciona como um código de insígnia
+        definido por quem cadastra). Confirme se essa é realmente a intenção do projeto ou se falta marcar
+        AUTO_INCREMENT no banco.'
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsigniaInput'
+            example:
+              id: 1
+              nome: Primeira doação
+              descricao: Concluiu a primeira doação
+              meta: 1
+              unidade: doação
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Insignia'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Gamificacao
+      summary: Listar insígnias
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Insignia'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /usuarios/{idUsuario}/insignias:
+    get:
+      tags:
+      - Gamificacao
+      summary: Consultar progresso de insígnias do usuário
+      description: 'Não existe POST manual: tbl_usuario_insignia é criada/atualizada automaticamente pelo
+        backend conforme o progresso do usuário. status: em_andamento | concluido.'
+      parameters:
+      - name: idUsuario
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do usuário
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/UsuarioInsignia'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /usuarios/{idUsuario}/pontos:
+    get:
+      tags:
+      - Gamificacao
+      summary: Consultar pontuação acumulada do usuário por categoria
+      description: tbl_pontos é gerada automaticamente pelo backend a cada ação concluída — não existe
+        cadastro manual.
+      parameters:
+      - name: idUsuario
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do usuário
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Pontos'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /vouchers:
+    post:
+      tags:
+      - Vouchers
+      summary: Resgatar voucher com pontos
+      description: 'id_usuario vem do usuário autenticado. codigo, data_resgate, data_expiracao e status
+        (ativo | utilizado | expirado | cancelado) são definidos pelo backend. O modelo não possui catálogo
+        de benefícios: tbl_voucher guarda o resgate já realizado.'
+      security: &id002
+      - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoucherInput'
+            example:
+              nome_parceiro: Parceiro Verde
+              beneficio: 10% de desconto
+              pontos_utilizados: 100
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Voucher'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Vouchers
+      summary: Listar vouchers do usuário autenticado
+      security: *id002
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Voucher'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /vouchers/{idVoucher}/qr-code:
+    post:
+      tags:
+      - Vouchers
+      summary: Gerar QR Code do voucher
+      description: Sem body. O backend gera o registro em tbl_qr_code e cria o vínculo em tbl_qr_code_voucher
+        (id_voucher vem da rota).
+      security: *id002
+      parameters:
+      - name: idVoucher
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do voucher
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/QrCode'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  # --------------------------------------------------------
+  # PONTOS DE COLETA
+  # --------------------------------------------------------
+  /pontos-coleta:
+    post:
+      tags:
+      - PontoColeta
+      summary: Cadastrar ponto de coleta
+      description: 'status (ativo | inativo) é definido pelo backend ("ativo" ao criar). latitude e longitude
+        são opcionais (aceitam NULL; DECIMAL(9,6)). O endereço NÃO faz mais parte do cadastro do ponto:
+        é vinculado depois em /pontos-coleta/{idPontoColeta}/enderecos (tbl_endereco_ponto_coleta). Os
+        materiais aceitos são vinculados em /pontos-coleta/{idPontoColeta}/materiais.'
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PontoColetaInput'
+            example:
+              nome: Ecoponto Bela Vista
+              descricao: Ponto de coleta de recicláveis
+              id_categoria: 1
+              longitude: -46.634489
+              latitude: -23.561414
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/PontoColeta'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - PontoColeta
+      summary: Listar pontos de coleta
+      parameters:
+      - name: id_categoria
+        in: query
+        schema:
+          type: integer
+        description: Filtrar por categoria
+      - name: id_material_aceito
+        in: query
+        schema:
+          type: integer
+        description: Filtrar por material aceito
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - ativo
+          - inativo
+      - name: latitude
+        in: query
+        schema:
+          type: number
+          format: double
+      - name: longitude
+        in: query
+        schema:
+          type: number
+          format: double
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/PontoColeta'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /pontos-coleta/{idPontoColeta}/materiais:
+    post:
+      tags:
+      - PontoColeta
+      summary: Vincular material aceito a um ponto de coleta
+      security: *id001
+      parameters:
+      - name: idPontoColeta
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do ponto de coleta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PontoColetaMaterialAceitoInput'
+            example:
+              id_material_aceito: 1
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/PontoColetaMaterialAceito'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - PontoColeta
+      summary: Listar materiais aceitos por um ponto de coleta
+      parameters:
+      - name: idPontoColeta
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do ponto de coleta
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/PontoColetaMaterialAceito'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /pontos-coleta/{idPontoColeta}/enderecos:
+    post:
+      tags:
+      - PontoColeta
+      summary: Cadastrar endereço de um ponto de coleta
+      description: NOVO (modelo atualizado). O backend grava o registro em tbl_endereco (preenchendo id_externa)
+        e cria o vínculo em tbl_endereco_ponto_coleta (id_ponto_coleta vem da rota).
+      security: *id001
+      parameters:
+      - name: idPontoColeta
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do ponto de coleta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnderecoInput'
+            example:
+              cep: 01310-100
+              rua: Av. Paulista, 1000
+              bairro: Bela Vista
+              cidade: São Paulo
+              estado: São Paulo
+              sigla: SP
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Endereco'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - PontoColeta
+      summary: Listar endereços de um ponto de coleta
+      description: Busca via tbl_endereco_ponto_coleta (JOIN com tbl_endereco).
+      parameters:
+      - name: idPontoColeta
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do ponto de coleta
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Endereco'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  # --------------------------------------------------------
+  # MÍDIA
+  # --------------------------------------------------------
+  /imagens:
+    post:
+      tags:
+      - Midia
+      summary: Enviar imagem (upload)
+      description: 'url NÃO é enviada pelo cliente: o backend recebe o arquivo binário, faz upload para
+        o storage e grava a URL resultante (VARCHAR 255). Este endpoint aceita multipart/form-data.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                arquivo:
+                  type: string
+                  format: binary
+                id_tipo_imagem:
+                  type: integer
+              required:
+              - arquivo
+              - id_tipo_imagem
+      responses:
+        '201':
+          description: Imagem enviada e registrada
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Imagem'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /anuncios/{idAnuncio}/imagens:
+    post:
+      tags:
+      - Anuncios
+      summary: Vincular imagem já enviada a um anúncio
+      parameters:
+      - name: idAnuncio
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do anúncio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImagemAnuncioInput'
+            example:
+              id_imagem: 1
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/ImagemAnuncio'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Anuncios
+      summary: Listar imagens de um anúncio
+      parameters:
+      - name: idAnuncio
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do anúncio
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Imagem'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  # --------------------------------------------------------
+  # ANÚNCIOS
+  # --------------------------------------------------------
+  /anuncios:
+    post:
+      tags:
+      - Anuncios
+      summary: Cadastrar anúncio
+      description: 'id_usuario vem do usuário autenticado (token), nunca do body. data_publicacao é definida
+        pelo backend (NOW()). O status do anúncio não existe em tbl_anuncio: o backend deve registrar
+        o status inicial "ativo" em tbl_historico_anuncio junto com o cadastro. id_condicao_item referencia
+        tbl_condicao_item. descricao é opcional (aceita NULL).'
+      security: *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnuncioInput'
+            example: &id005
+              nome: Garrafas PET (10 un.)
+              descricao: Garrafas limpas, prontas para reciclagem
+              id_categoria: 1
+              id_modalidade: 1
+              id_condicao_item: 1
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Anuncio'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Anuncios
+      summary: Listar anúncios
+      parameters:
+      - name: id_categoria
+        in: query
+        schema:
+          type: integer
+      - name: id_modalidade
+        in: query
+        schema:
+          type: integer
+      - name: id_condicao_item
+        in: query
+        schema:
+          type: integer
+      - *id003
+      - *id004
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Anuncio'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /anuncios/{id}:
+    get:
+      tags:
+      - Anuncios
+      summary: Obter anúncio por id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Identificador (PK)
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      $ref: '#/components/schemas/Anuncio'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    put:
+      tags:
+      - Anuncios
+      summary: Atualizar dados do anúncio (nome, descrição, categoria, modalidade)
+      security: *id002
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Identificador (PK)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnuncioInput'
+            example: *id005
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro atualizado com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Anuncio'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    delete:
+      tags:
+      - Anuncios
+      summary: Remover anúncio
+      security: *id002
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Identificador (PK)
+      responses:
+        '200':
+          description: Removido
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    message:
+                      type: string
+                      example: Registro Deletado com um sucesso!
+                    response:
+                      type: object
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /anuncios/{id}/status:
+    patch:
+      tags:
+      - Anuncios
+      summary: Alterar status do anúncio (gera registro em tbl_historico_anuncio)
+      description: 'id_anuncio e data_alteracao são preenchidos pelo backend. status é um ENUM no banco:
+        ativo | desativado | apagado | negociado.'
+      security: *id002
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Identificador (PK)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HistoricoAnuncioInput'
+            example:
+              status: negociado
+              detalhes: Negociado com o usuário X
+      responses:
+        '201':
+          description: Status atualizado, histórico registrado
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro atualizado com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/HistoricoAnuncio'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /anuncios/{idAnuncio}/alertas:
+    get:
+      tags:
+      - Moderacao
+      summary: Consultar alertas gerados pela IA para um anúncio
+      description: 'Busca via tbl_alertas_anuncio (JOIN com tbl_alertas). tbl_alertas é populada automaticamente
+        pela IA (análise de foto/texto) — não existe cadastro manual. status: pendente | revisado | resolvido.'
+      parameters:
+      - name: idAnuncio
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do anúncio
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Alertas'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  # --------------------------------------------------------
+  # PAGAMENTOS
+  # --------------------------------------------------------
+  /anuncios/{idAnuncio}/pagamentos:
+    post:
+      tags:
+      - Pagamentos
+      summary: Iniciar pagamento de um anúncio (somente modalidade "venda")
+      description: 'Regra de negócio (validada no backend, não no banco): só anúncios com modalidade "venda"
+        podem gerar pagamento. id_comprador vem do usuário autenticado. status (pendente | aprovado |
+        recusado | estornado | cancelado) e id_externo são preenchidos pelo backend após chamar a API
+        de pagamento externa.'
+      security: *id002
+      parameters:
+      - name: idAnuncio
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do anúncio a ser pago
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PagamentoInput'
+            example:
+              valor: 49.9
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Pagamento'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /webhooks/pagamento:
+    post:
+      tags:
+      - Pagamentos
+      summary: Webhook de atualização de status de pagamento (chamado pela API de pagamento externa, não
+        pelo usuário)
+      description: 'Atualiza tbl_pagamento e registra a mudança em tbl_historico_pagamento (status: pendente
+        | aprovado | recusado | estornado | cancelado).'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_externo:
+                  type: string
+                  maxLength: 255
+                status:
+                  type: string
+                  enum:
+                  - pendente
+                  - aprovado
+                  - recusado
+                  - estornado
+                  - cancelado
+              required:
+              - id_externo
+              - status
+            example:
+              id_externo: TXN-9F21
+              status: aprovado
+      responses:
+        '200':
+          description: Histórico de pagamento registrado (tbl_historico_pagamento)
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/HistoricoPagamento'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  # --------------------------------------------------------
+  # ENTREGAS / QR CODES
+  # --------------------------------------------------------
+  /anuncios/{idAnuncio}/entregas:
+    post:
+      tags:
+      - Entregas
+      summary: Registrar entrega de um anúncio
+      description: id_anuncio vem da rota e id_usuario do usuário autenticado (assumido como quem realiza
+        a entrega — confirme). status (pendente | concluida | cancelada) começa como "pendente", definido
+        pelo backend.
+      security: *id002
+      parameters:
+      - name: idAnuncio
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do anúncio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntregaInput'
+            example:
+              peso_estimado: 2.5
+              data_entrega: '2026-10-05T14:00:00Z'
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Entrega'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /entregas/{idEntrega}:
+    get:
+      tags:
+      - Entregas
+      summary: Obter entrega por id
+      security: *id002
+      parameters:
+      - name: idEntrega
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID da entrega
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      $ref: '#/components/schemas/Entrega'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /entregas/{idEntrega}/status:
+    patch:
+      tags:
+      - Entregas
+      summary: Alterar status da entrega
+      security: *id002
+      parameters:
+      - name: idEntrega
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID da entrega
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntregaStatusInput'
+            example:
+              status: concluida
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro atualizado com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Entrega'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /entregas/{idEntrega}/imagens:
+    post:
+      tags:
+      - Entregas
+      summary: Vincular imagem (comprovante) a uma entrega
+      security: *id002
+      parameters:
+      - name: idEntrega
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID da entrega
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImagemEntregaInput'
+            example:
+              id_imagem: 1
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/ImagemEntrega'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Entregas
+      summary: Listar imagens de uma entrega
+      security: *id002
+      parameters:
+      - name: idEntrega
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID da entrega
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Imagem'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /entregas/{idEntrega}/avaliacoes:
+    post:
+      tags:
+      - Avaliacoes
+      summary: Avaliar uma entrega
+      description: id_entrega vem da rota e id_usuario do usuário autenticado. data_avaliacao é definida
+        pelo backend.
+      security: *id002
+      parameters:
+      - name: idEntrega
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID da entrega
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvaliacaoInput'
+            example:
+              nota: 5
+              comentario: Entrega rápida e tranquila
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Avaliacao'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Avaliacoes
+      summary: Listar avaliações de uma entrega
+      security: *id002
+      parameters:
+      - name: idEntrega
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID da entrega
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Avaliacao'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /entregas/{idEntrega}/qr-code:
+    post:
+      tags:
+      - Entregas
+      summary: Gerar QR Code da entrega
+      description: Sem body. O backend gera codigo, data_criacao, data_expiracao e status (ativo | utilizado
+        | expirado | cancelado) em tbl_qr_code e cria o vínculo em tbl_qr_code_entrega (id_entrega vem
+        da rota; id_anuncio é obtido da entrega).
+      security: *id002
+      parameters:
+      - name: idEntrega
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID da entrega
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/QrCode'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /qr-codes/{idQrCode}:
+    get:
+      tags:
+      - Entregas
+      summary: Obter QR Code por id
+      security: *id002
+      parameters:
+      - name: idQrCode
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID do QR Code
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      $ref: '#/components/schemas/QrCode'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /qr-codes/leituras:
+    post:
+      tags:
+      - Entregas
+      summary: Registrar leitura de um QR Code
+      description: id_usuario vem do usuário autenticado. O backend localiza o QR Code pelo codigo, define
+        data_leitura e o status da leitura (valida | invalida | expirada) e atualiza o status do QR Code
+        e da entrega conforme a regra de negócio. O QR Code pode estar vinculado a uma entrega (tbl_qr_code_entrega)
+        ou a um voucher (tbl_qr_code_voucher).
+      security: *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QrCodeLeituraInput'
+            example:
+              codigo: ECO-7F3A91C2
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/LeituraQrCode'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  # --------------------------------------------------------
+  # CONVERSAS
+  # --------------------------------------------------------
+  /conversas:
+    post:
+      tags:
+      - Conversas
+      summary: Iniciar conversa sobre um anúncio
+      description: id_usuario (o comprador interessado) vem do usuário autenticado, nunca do body.
+      security: *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversaInput'
+            example:
+              id_anuncio: 1
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Conversa'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Conversas
+      summary: Listar conversas do usuário autenticado
+      security: *id002
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Conversa'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /conversas/{idConversa}/mensagens:
+    post:
+      tags:
+      - Conversas
+      summary: Enviar mensagem em uma conversa
+      description: id_conversa vem da rota. id_remetente vem do usuário autenticado. envio e lida são
+        definidos pelo backend.
+      security: *id002
+      parameters:
+      - name: idConversa
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID da conversa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MensagensInput'
+            example:
+              texto: Olá, ainda está disponível?
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Mensagens'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+    get:
+      tags:
+      - Conversas
+      summary: Listar mensagens de uma conversa
+      security: *id002
+      parameters:
+      - name: idConversa
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID da conversa
+      responses:
+        '200':
+          description: Lista
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 200
+                    response:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/Mensagens'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  # --------------------------------------------------------
+  # DENÚNCIAS
+  # --------------------------------------------------------
+  /denuncias:
+    post:
+      tags:
+      - Denuncias
+      summary: Registrar denúncia
+      description: 'id_denunciante vem do usuário autenticado (nunca do body). A denúncia não possui mais
+        id_imagem: as imagens são vinculadas depois em /denuncias/{idDenuncia}/imagens (tbl_imagem_denuncias)
+        e as mensagens-evidência em /denuncias/{idDenuncia}/mensagens.'
+      security: *id002
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DenunciasInput'
+            example:
+              id_tipo_denuncias: 1
+              descricao: Anúncio com conteúdo impróprio
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Denuncias'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /denuncias/{idDenuncia}/imagens:
+    post:
+      tags:
+      - Denuncias
+      summary: Vincular imagem a uma denúncia
+      parameters:
+      - name: idDenuncia
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID da denúncia
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImagemDenunciasInput'
+            example:
+              id_imagem: 1
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/ImagemDenuncias'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  /denuncias/{idDenuncia}/mensagens:
+    post:
+      tags:
+      - Denuncias
+      summary: Vincular mensagem como evidência de uma denúncia
+      parameters:
+      - name: idDenuncia
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: ID da denúncia
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DenunciasMensagensInput'
+            example:
+              id_mensagens: 1
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/DenunciasMensagens'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '404':
+          $ref: '#/components/responses/NotFound404'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+  # --------------------------------------------------------
+  # ADMINISTRADORES
+  # --------------------------------------------------------
+  /administradores:
+    post:
+      tags:
+      - Administradores
+      summary: Cadastrar administrador
+      description: Rota restrita a administradores autenticados. senha é write-only (nunca retornada no
+        response).
+      security: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdministradorInput'
+            example:
+              nome: Maria Souza
+              email: maria@ecowayer.com.br
+              senha: SenhaForte123
+      responses:
+        '201':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/RespostaBase'
+                - type: object
+                  properties:
+                    status:
+                      type: boolean
+                      example: true
+                    status_code:
+                      type: integer
+                      example: 201
+                    message:
+                      type: string
+                      example: Registro inserido com um sucesso!
+                    response:
+                      $ref: '#/components/schemas/Administrador'
+        '400':
+          $ref: '#/components/responses/BadRequest400'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType415'
+        '500':
+          $ref: '#/components/responses/InternalServerError500'
+# ============================================================
+# COMPONENTS
+# ============================================================
+components:
+  # --------------------------------------------------------
+  # SECURITY SCHEMES
+  # --------------------------------------------------------
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token do usuário autenticado. Rotas marcadas com escopo "admin" exigem token de administrador
+        (tbl_administrador).
+  # --------------------------------------------------------
+  # RESPONSES REUTILIZÁVEIS
+  # --------------------------------------------------------
+  responses:
+    BadRequest400:
+      description: ERROR_BAD_REQUEST — os dados enviados na requisição não estão corretos (falha de validação
+        do Request Body).
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              status_code:
+                type: integer
+                example: 400
+              message:
+                type: string
+                example: Os Dados enviados na requisição não estão corretos!
+          example:
+            status: false
+            status_code: 400
+            message: Os Dados enviados na requisição não estão corretos!
+    UnsupportedMediaType415:
+      description: 'ERROR_CONTENT_TYPE — a API só aceita requisições com Content-Type: application/json
+        (exceto o upload em /imagens, que usa multipart/form-data).'
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              status_code:
+                type: integer
+                example: 415
+              message:
+                type: string
+                example: NÃO FOI POSSIVEL PROCESSAR A REQUISIÇÃO, pois o formato de dados aceito pela
+                  API é somente JSON!
+          example:
+            status: false
+            status_code: 415
+            message: NÃO FOI POSSIVEL PROCESSAR A REQUISIÇÃO, pois o formato de dados aceito pela API
+              é somente JSON!
+    NotFound404:
+      description: ERROR_NOT_FOUND — não foi encontrado nenhum dado para retorno.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              status_code:
+                type: integer
+                example: 404
+              message:
+                type: string
+                example: NÃO FOI ENCONTRADO NENHUM DADO PARA RETORNO!
+          example:
+            status: false
+            status_code: 404
+            message: NÃO FOI ENCONTRADO NENHUM DADO PARA RETORNO!
+    InternalServerError500:
+      description: 'Erro interno: ERROR_INTERNAL_SEVER_MODEL (falha na camada de modelagem/banco) ou ERROR_INTERNAL_CONTROLER
+        (falha na camada de controller).'
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: boolean
+                example: false
+              status_code:
+                type: integer
+                example: 500
+              message:
+                type: string
+                example: Mensagem varia conforme a camada onde o erro ocorreu
+          examples:
+            erro_model:
+              summary: Falha na modelagem de dados (Model)
+              value:
+                status: false
+                status_code: 500
+                message: NÃO FOI POSSIVEL PROCESSAR A REQUISIÇÃO POR CONTA DE ERRO NA API [ERRO NA MODELAGEM
+                  DE DADOS]!
+            erro_controller:
+              summary: Falha na Controller
+              value:
+                status: false
+                status_code: 500
+                message: NÃO FOI POSSIVEL PROCESSAR A REQUISIÇÃO POR CONTA DE ERRO NA API [ERRO NA CONTROLER]!
+  # --------------------------------------------------------
+  # SCHEMAS
+  # --------------------------------------------------------
+  schemas:
+    RespostaBase:
+      type: object
+      description: Cabeçalho padrão de toda resposta da API (arquivo de mensagens do backend).
+      properties:
+        status:
+          type: boolean
+          description: true em caso de sucesso, false em caso de erro
+        status_code:
+          type: integer
+          description: Mesmo valor do HTTP status code da resposta
+        message:
+          type: string
+          description: Mensagem descritiva do resultado
+      required:
+      - status
+      - status_code
+    Usuario:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 100
+        cpf:
+          type: string
+          maxLength: 18
+        data_nascimento:
+          type: string
+          format: date
+        id_imagem:
+          type: integer
+        id_genero:
+          type: integer
+        id_status_usuario:
+          type: integer
+        id_nivel_impacto:
+          type: integer
+      required:
+      - id
+      - nome
+      - cpf
+      - data_nascimento
+      - id_imagem
+      - id_genero
+      - id_status_usuario
+      - id_nivel_impacto
+    Email:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        email:
+          type: string
+          maxLength: 255
+        codigo_verificacao:
+          type: string
+          maxLength: 6
+        id_usuario:
+          type: integer
+      required:
+      - id
+      - email
+      - codigo_verificacao
+      - id_usuario
+    Telefone:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        numero:
+          type: string
+          maxLength: 20
+        codigo_verificacao:
+          type: string
+          maxLength: 6
+        id_usuario:
+          type: integer
+      required:
+      - id
+      - numero
+      - codigo_verificacao
+      - id_usuario
+    Conta:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_email:
+          type: integer
+        senha:
+          type: string
+          maxLength: 255
+          writeOnly: true
+      required:
+      - id
+      - id_email
+    Endereco:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        cep:
+          type: string
+          maxLength: 9
+        rua:
+          type: string
+          maxLength: 100
+        bairro:
+          type: string
+          maxLength: 100
+        cidade:
+          type: string
+          maxLength: 100
+        estado:
+          type: string
+          maxLength: 100
+        sigla:
+          type: string
+          maxLength: 2
+        id_externa:
+          type: string
+          maxLength: 255
+          readOnly: true
+          description: Identificador do endereço em serviço externo (NOT NULL no banco). Preenchido pelo
+            backend — confirmar a origem.
+        complemento:
+          type: string
+          maxLength: 50
+          nullable: true
+      required:
+      - id
+      - cep
+      - rua
+      - bairro
+      - cidade
+      - estado
+      - sigla
+      - id_externa
+    EnderecoUsuario:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_endereco:
+          type: integer
+        id_usuario:
+          type: integer
+      required:
+      - id
+      - id_endereco
+      - id_usuario
+    EnderecoPontoColeta:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_endereco:
+          type: integer
+        id_ponto_coleta:
+          type: integer
+      required:
+      - id
+      - id_endereco
+      - id_ponto_coleta
+    Categoria:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 100
+        pontos:
+          type: integer
+        id_tipo_categoria:
+          type: integer
+      required:
+      - id
+      - nome
+      - pontos
+      - id_tipo_categoria
+    PontoColeta:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 100
+        descricao:
+          type: string
+        status:
+          type: string
+          enum:
+          - ativo
+          - inativo
+        id_categoria:
+          type: integer
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+          nullable: true
+          description: 'DECIMAL(9,6) no banco. Atenção: o driver mysql2 devolve DECIMAL como string, a
+            menos que decimalNumbers:true esteja ativo.'
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          nullable: true
+          description: 'DECIMAL(9,6) no banco. Atenção: o driver mysql2 devolve DECIMAL como string, a
+            menos que decimalNumbers:true esteja ativo.'
+      required:
+      - id
+      - nome
+      - descricao
+      - status
+      - id_categoria
+    Mensagens:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        texto:
+          type: string
+        envio:
+          type: string
+          format: date-time
+        lida:
+          type: boolean
+        id_conversa:
+          type: integer
+        id_remetente:
+          type: integer
+      required:
+      - id
+      - texto
+      - envio
+      - lida
+      - id_conversa
+      - id_remetente
+    Administrador:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          maxLength: 255
+        senha:
+          type: string
+          maxLength: 255
+          writeOnly: true
+      required:
+      - id
+      - nome
+      - email
+    Anuncio:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 100
+        descricao:
+          type: string
+          nullable: true
+        data_publicacao:
+          type: string
+          format: date-time
+        id_usuario:
+          type: integer
+        id_categoria:
+          type: integer
+        id_modalidade:
+          type: integer
+        id_condicao_item:
+          type: integer
+      required:
+      - id
+      - nome
+      - data_publicacao
+      - id_usuario
+      - id_categoria
+      - id_modalidade
+      - id_condicao_item
+    Denuncias:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_tipo_denuncias:
+          type: integer
+        descricao:
+          type: string
+        id_denunciante:
+          type: integer
+      required:
+      - id
+      - id_tipo_denuncias
+      - descricao
+      - id_denunciante
+    TipoCategoria:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 100
+      required:
+      - id
+      - nome
+    Imagem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        url:
+          type: string
+          maxLength: 255
+        id_tipo_imagem:
+          type: integer
+      required:
+      - id
+      - url
+      - id_tipo_imagem
+    HistoricoAnuncio:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_anuncio:
+          type: integer
+        status:
+          type: string
+          enum:
+          - ativo
+          - desativado
+          - apagado
+          - negociado
+        detalhes:
+          type: string
+          nullable: true
+        data_alteracao:
+          type: string
+          format: date-time
+      required:
+      - id
+      - id_anuncio
+      - status
+      - data_alteracao
+    StatusUsuario:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        status:
+          type: string
+          maxLength: 50
+      required:
+      - id
+      - status
+    Pagamento:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        status:
+          type: string
+          enum:
+          - pendente
+          - aprovado
+          - recusado
+          - estornado
+          - cancelado
+        valor:
+          type: number
+          format: double
+          multipleOf: 0.01
+        id_externo:
+          type: string
+          maxLength: 255
+        id_anuncio:
+          type: integer
+        id_comprador:
+          type: integer
+      required:
+      - id
+      - status
+      - valor
+      - id_externo
+      - id_anuncio
+      - id_comprador
+    Modalidade:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_tipo_modalidade:
+          type: integer
+        nome:
+          type: string
+          maxLength: 45
+      required:
+      - id
+      - id_tipo_modalidade
+      - nome
+    Ia:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 100
+        provedor:
+          type: string
+          maxLength: 50
+        versao:
+          type: string
+          maxLength: 20
+        status:
+          type: string
+          enum:
+          - ativo
+          - inativo
+          - treinando
+        id_externo:
+          type: string
+          maxLength: 255
+      required:
+      - id
+      - nome
+      - provedor
+      - versao
+      - status
+      - id_externo
+    HistoricoPagamento:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_pagamento:
+          type: integer
+        status:
+          type: string
+          enum:
+          - pendente
+          - aprovado
+          - recusado
+          - estornado
+          - cancelado
+        data_alteracao:
+          type: string
+          format: date-time
+        detalhes:
+          type: string
+      required:
+      - id
+      - id_pagamento
+      - status
+      - data_alteracao
+      - detalhes
+    Pontos:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        qntd_pontos:
+          type: integer
+        id_categoria:
+          type: integer
+        id_usuario:
+          type: integer
+        data_registro:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - id
+      - qntd_pontos
+      - id_categoria
+      - id_usuario
+      - data_registro
+    TipoModalidade:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        tipo:
+          type: string
+          maxLength: 50
+      required:
+      - id
+      - tipo
+    TipoImagem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        tipo:
+          type: string
+          maxLength: 50
+      required:
+      - id
+      - tipo
+    TipoDenuncias:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        tipo:
+          type: string
+          maxLength: 50
+      required:
+      - id
+      - tipo
+    TreinamentoIa:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        status:
+          type: string
+          enum:
+          - pendente
+          - em_andamento
+          - concluido
+          - erro
+        id_externo:
+          type: string
+          maxLength: 255
+        id_ia:
+          type: integer
+        id_dataset:
+          type: integer
+      required:
+      - id
+      - status
+      - id_externo
+      - id_ia
+      - id_dataset
+    Dataset:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 100
+        descricao:
+          type: string
+      required:
+      - id
+      - nome
+      - descricao
+    Conversa:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_anuncio:
+          type: integer
+        id_usuario:
+          type: integer
+      required:
+      - id
+      - id_anuncio
+      - id_usuario
+    Genero:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 50
+        sigla:
+          type: string
+          maxLength: 5
+      required:
+      - id
+      - nome
+      - sigla
+    Alertas:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        motivo:
+          type: string
+        status:
+          type: string
+          enum:
+          - pendente
+          - revisado
+          - resolvido
+        acao:
+          type: string
+          maxLength: 100
+        id_ia:
+          type: integer
+        id_usuario:
+          type: integer
+      required:
+      - id
+      - motivo
+      - status
+      - acao
+      - id_ia
+      - id_usuario
+      description: Alerta gerado pela IA. O vínculo com anúncios, denúncias e mensagens é feito pelas
+        tabelas tbl_alertas_anuncio, tbl_alertas_denuncias e tbl_alertas_mensagens.
+    Insignia:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 100
+        descricao:
+          type: string
+        meta:
+          type: integer
+        unidade:
+          type: string
+          maxLength: 20
+      required:
+      - id
+      - nome
+      - descricao
+      - meta
+      - unidade
+    UsuarioInsignia:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_insignia:
+          type: integer
+        id_usuario:
+          type: integer
+        progresso:
+          type: number
+          format: double
+          multipleOf: 0.01
+        status:
+          type: string
+          enum:
+          - em_andamento
+          - concluido
+      required:
+      - id
+      - id_insignia
+      - id_usuario
+      - progresso
+      - status
+    NivelImpacto:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 100
+        numero:
+          type: integer
+        meta:
+          type: number
+          format: double
+          multipleOf: 0.01
+        unidade:
+          type: string
+          maxLength: 20
+      required:
+      - id
+      - nome
+      - numero
+      - meta
+      - unidade
+    Verificacao:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        tentativas:
+          type: integer
+        tempo:
+          type: integer
+        reenvio:
+          type: integer
+        bloqueio:
+          type: string
+          format: date-time
+          nullable: true
+        ultimo_reenvio:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - id
+      - tentativas
+      - tempo
+      - reenvio
+    ImagemAnuncio:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_imagem:
+          type: integer
+        id_anuncio:
+          type: integer
+      required:
+      - id
+      - id_imagem
+      - id_anuncio
+    ImagemDenuncias:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_imagem:
+          type: integer
+        id_denuncias:
+          type: integer
+      required:
+      - id
+      - id_imagem
+      - id_denuncias
+    DenunciasMensagens:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_denuncias:
+          type: integer
+        id_mensagens:
+          type: integer
+      required:
+      - id
+      - id_denuncias
+      - id_mensagens
+    EmailVerificacao:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_email:
+          type: integer
+        id_verificacao:
+          type: integer
+      required:
+      - id
+      - id_email
+      - id_verificacao
+    TelefoneVerificacao:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_verificacao:
+          type: integer
+        id_telefone:
+          type: integer
+      required:
+      - id
+      - id_verificacao
+      - id_telefone
+    MaterialAceito:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 100
+        icone:
+          type: string
+          maxLength: 255
+      required:
+      - id
+      - nome
+      - icone
+    PontoColetaMaterialAceito:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_ponto_coleta:
+          type: integer
+        id_material_aceito:
+          type: integer
+      required:
+      - id
+      - id_ponto_coleta
+      - id_material_aceito
+    QrCode:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        codigo:
+          type: string
+          maxLength: 255
+        data_criacao:
+          type: string
+          format: date-time
+        data_expiracao:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - ativo
+          - utilizado
+          - expirado
+          - cancelado
+      required:
+      - id
+      - codigo
+      - data_criacao
+      - data_expiracao
+      - status
+    LeituraQrCode:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        data_leitura:
+          type: string
+          format: date-time
+        id_qr_code:
+          type: integer
+        id_usuario:
+          type: integer
+        status:
+          type: string
+          enum:
+          - valida
+          - invalida
+          - expirada
+      required:
+      - id
+      - data_leitura
+      - id_qr_code
+      - id_usuario
+      - status
+    Entrega:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        peso_estimado:
+          type: number
+          format: double
+          multipleOf: 0.01
+        status:
+          type: string
+          enum:
+          - pendente
+          - concluida
+          - cancelada
+        data_entrega:
+          type: string
+          format: date-time
+        id_anuncio:
+          type: integer
+        id_usuario:
+          type: integer
+      required:
+      - id
+      - peso_estimado
+      - status
+      - data_entrega
+      - id_anuncio
+      - id_usuario
+    ImagemEntrega:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_entrega:
+          type: integer
+        id_imagem:
+          type: integer
+      required:
+      - id
+      - id_entrega
+      - id_imagem
+    UsuarioInput:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 100
+        cpf:
+          type: string
+          maxLength: 18
+        data_nascimento:
+          type: string
+          format: date
+        id_genero:
+          type: integer
+      required:
+      - nome
+      - cpf
+      - data_nascimento
+      - id_genero
+    EmailInput:
+      type: object
+      properties:
+        email:
+          type: string
+          maxLength: 255
+      required:
+      - email
+    TelefoneInput:
+      type: object
+      properties:
+        numero:
+          type: string
+          maxLength: 20
+      required:
+      - numero
+    ContaInput:
+      type: object
+      properties:
+        id_email:
+          type: integer
+        senha:
+          type: string
+          maxLength: 255
+          writeOnly: true
+      required:
+      - id_email
+      - senha
+    EnderecoInput:
+      type: object
+      properties:
+        cep:
+          type: string
+          maxLength: 9
+        rua:
+          type: string
+          maxLength: 100
+        bairro:
+          type: string
+          maxLength: 100
+        cidade:
+          type: string
+          maxLength: 100
+        estado:
+          type: string
+          maxLength: 100
+        sigla:
+          type: string
+          maxLength: 2
+        complemento:
+          type: string
+          maxLength: 50
+          nullable: true
+      required:
+      - cep
+      - rua
+      - bairro
+      - cidade
+      - estado
+      - sigla
+    CategoriaInput:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 100
+        pontos:
+          type: integer
+        id_tipo_categoria:
+          type: integer
+      required:
+      - nome
+      - pontos
+      - id_tipo_categoria
+    TipoCategoriaInput:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 100
+      required:
+      - nome
+    PontoColetaInput:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 100
+        descricao:
+          type: string
+        id_categoria:
+          type: integer
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+          nullable: true
+          description: 'DECIMAL(9,6) no banco. Atenção: o driver mysql2 devolve DECIMAL como string, a
+            menos que decimalNumbers:true esteja ativo.'
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          nullable: true
+          description: 'DECIMAL(9,6) no banco. Atenção: o driver mysql2 devolve DECIMAL como string, a
+            menos que decimalNumbers:true esteja ativo.'
+      required:
+      - nome
+      - descricao
+      - id_categoria
+    MensagensInput:
+      type: object
+      properties:
+        texto:
+          type: string
+      required:
+      - texto
+    AdministradorInput:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          maxLength: 255
+        senha:
+          type: string
+          maxLength: 255
+          writeOnly: true
+      required:
+      - nome
+      - email
+      - senha
+    AnuncioInput:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 100
+        descricao:
+          type: string
+          nullable: true
+        id_categoria:
+          type: integer
+        id_modalidade:
+          type: integer
+        id_condicao_item:
+          type: integer
+          description: 'FK para tbl_condicao_item (ex.: novo, usado)'
+      required:
+      - nome
+      - id_categoria
+      - id_modalidade
+      - id_condicao_item
+    DenunciasInput:
+      type: object
+      properties:
+        id_tipo_denuncias:
+          type: integer
+        descricao:
+          type: string
+      required:
+      - id_tipo_denuncias
+      - descricao
+    HistoricoAnuncioInput:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - ativo
+          - desativado
+          - apagado
+          - negociado
+        detalhes:
+          type: string
+      required:
+      - status
+    StatusUsuarioInput:
+      type: object
+      properties:
+        status:
+          type: string
+          maxLength: 50
+      required:
+      - status
+    PagamentoInput:
+      type: object
+      properties:
+        valor:
+          type: number
+          format: double
+          multipleOf: 0.01
+      required:
+      - valor
+    ModalidadeInput:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 45
+        id_tipo_modalidade:
+          type: integer
+      required:
+      - nome
+      - id_tipo_modalidade
+    IaInput:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 100
+        provedor:
+          type: string
+          maxLength: 50
+        versao:
+          type: string
+          maxLength: 20
+      required:
+      - nome
+      - provedor
+      - versao
+    TipoModalidadeInput:
+      type: object
+      properties:
+        tipo:
+          type: string
+          maxLength: 50
+      required:
+      - tipo
+    TipoImagemInput:
+      type: object
+      properties:
+        tipo:
+          type: string
+          maxLength: 50
+      required:
+      - tipo
+    TipoDenunciasInput:
+      type: object
+      properties:
+        tipo:
+          type: string
+          maxLength: 50
+      required:
+      - tipo
+    TreinamentoIaInput:
+      type: object
+      properties:
+        id_ia:
+          type: integer
+        id_dataset:
+          type: integer
+      required:
+      - id_ia
+      - id_dataset
+    DatasetInput:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 100
+        descricao:
+          type: string
+      required:
+      - nome
+      - descricao
+    ConversaInput:
+      type: object
+      properties:
+        id_anuncio:
+          type: integer
+      required:
+      - id_anuncio
+    GeneroInput:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 50
+        sigla:
+          type: string
+          maxLength: 5
+      required:
+      - nome
+      - sigla
+    InsigniaInput:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+          maxLength: 100
+        descricao:
+          type: string
+        meta:
+          type: integer
+        unidade:
+          type: string
+          maxLength: 20
+      required:
+      - id
+      - nome
+      - descricao
+      - meta
+      - unidade
+    NivelImpactoInput:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 100
+        numero:
+          type: integer
+        meta:
+          type: number
+          format: double
+          multipleOf: 0.01
+        unidade:
+          type: string
+          maxLength: 20
+      required:
+      - nome
+      - numero
+      - meta
+      - unidade
+    ImagemAnuncioInput:
+      type: object
+      properties:
+        id_imagem:
+          type: integer
+      required:
+      - id_imagem
+    ImagemDenunciasInput:
+      type: object
+      properties:
+        id_imagem:
+          type: integer
+      required:
+      - id_imagem
+    DenunciasMensagensInput:
+      type: object
+      properties:
+        id_mensagens:
+          type: integer
+      required:
+      - id_mensagens
+    MaterialAceitoInput:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 100
+        icone:
+          type: string
+          maxLength: 255
+      required:
+      - nome
+      - icone
+    PontoColetaMaterialAceitoInput:
+      type: object
+      properties:
+        id_material_aceito:
+          type: integer
+      required:
+      - id_material_aceito
+    EntregaInput:
+      type: object
+      properties:
+        peso_estimado:
+          type: number
+          format: double
+          multipleOf: 0.01
+        data_entrega:
+          type: string
+          format: date-time
+      required:
+      - peso_estimado
+      - data_entrega
+    EntregaStatusInput:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - pendente
+          - concluida
+          - cancelada
+      required:
+      - status
+    ImagemEntregaInput:
+      type: object
+      properties:
+        id_imagem:
+          type: integer
+      required:
+      - id_imagem
+    QrCodeLeituraInput:
+      type: object
+      properties:
+        codigo:
+          type: string
+          maxLength: 255
+      required:
+      - codigo
+    VerificacaoCodigoInput:
+      type: object
+      properties:
+        codigo:
+          type: string
+          minLength: 6
+          maxLength: 6
+      required:
+      - codigo
+    CondicaoItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 50
+      required:
+      - id
+      - nome
+    CondicaoItemInput:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 50
+      required:
+      - nome
+    Avaliacao:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nota:
+          type: integer
+        comentario:
+          type: string
+          nullable: true
+        data_avaliacao:
+          type: string
+          format: date-time
+        id_entrega:
+          type: integer
+        id_usuario:
+          type: integer
+      required:
+      - id
+      - nota
+      - data_avaliacao
+      - id_entrega
+      - id_usuario
+    AvaliacaoInput:
+      type: object
+      properties:
+        nota:
+          type: integer
+          description: 'O modelo não define faixa de valores; validar no backend (ex.: 1 a 5).'
+        comentario:
+          type: string
+          nullable: true
+      required:
+      - nota
+    Voucher:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome_parceiro:
+          type: string
+          maxLength: 150
+        beneficio:
+          type: string
+          maxLength: 255
+        codigo:
+          type: string
+          maxLength: 255
+        data_resgate:
+          type: string
+          format: date-time
+        data_expiracao:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - ativo
+          - utilizado
+          - expirado
+          - cancelado
+        pontos_utilizados:
+          type: integer
+        id_usuario:
+          type: integer
+      required:
+      - id
+      - nome_parceiro
+      - beneficio
+      - codigo
+      - data_resgate
+      - data_expiracao
+      - status
+      - pontos_utilizados
+      - id_usuario
+    VoucherInput:
+      type: object
+      properties:
+        nome_parceiro:
+          type: string
+          maxLength: 150
+        beneficio:
+          type: string
+          maxLength: 255
+        pontos_utilizados:
+          type: integer
+      required:
+      - nome_parceiro
+      - beneficio
+      - pontos_utilizados
+    QrCodeEntrega:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_qr_code:
+          type: integer
+        id_entrega:
+          type: integer
+        id_anuncio:
+          type: integer
+      required:
+      - id
+      - id_qr_code
+      - id_entrega
+      - id_anuncio
+    QrCodeVoucher:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_qr_code:
+          type: integer
+        id_voucher:
+          type: integer
+      required:
+      - id
+      - id_qr_code
+      - id_voucher
+    AlertasAnuncio:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_alertas:
+          type: integer
+        id_anuncio:
+          type: integer
+      required:
+      - id
+      - id_alertas
+      - id_anuncio
+    AlertasDenuncias:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_alertas:
+          type: integer
+        id_denuncias:
+          type: integer
+      required:
+      - id
+      - id_alertas
+      - id_denuncias
+    AlertasMensagens:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        id_alertas:
+          type: integer
+        id_mensagens:
+          type: integer
+        tbl_entrega_id:
+          type: integer
+          description: 'ATENÇÃO: FK NOT NULL para tbl_entrega presente no modelo atual; provável coluna
+            criada por engano no Workbench. Confirme se deve existir.'
+      required:
+      - id
+      - id_alertas
+      - id_mensagens
+      - tbl_entrega_id
