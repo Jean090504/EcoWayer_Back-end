@@ -14,7 +14,10 @@ const bad = (message, code = 'VALIDATION_ERROR') => new AppError(message, 400, c
 const issueCode = async (userId, contact, purpose) => {
   const code = otp.generate();
   await dao.saveCode({ userId, contact, codeHash: otp.hash(code), purpose, expiresAt: new Date(Date.now() + 10 * 60 * 1000) });
-  try { return await notificacao.enviarCodigo({ contato: contact, codigo: code, finalidade: purpose }); }
+  try {
+    const dispatch = await notificacao.enviarCodigo({ contato: contact, codigo: code, finalidade: purpose });
+    return process.env.NODE_ENV === 'production' ? dispatch : { ...dispatch, codigo_desenvolvimento: code };
+  }
   catch { return { enviado: false }; }
 };
 const publicUser = (user) => { const { senha_hash, ...data } = user; return data; };
@@ -53,7 +56,7 @@ exports.register = async (req, res) => {
   }
   const emailDispatch = await issueCode(userId, normalizedEmail, 'email');
   const phoneDispatch = await issueCode(userId, normalizedPhone, 'telefone');
-  res.status(201).json({ mensagem: 'Cadastro realizado. Confirme seu e-mail e telefone para ativar o acesso.', id_usuario: userId, notificacoes: { email: emailDispatch.enviado, telefone: phoneDispatch.enviado } });
+  res.status(201).json({ mensagem: 'Cadastro realizado. Confirme seu e-mail e telefone para ativar o acesso.', id_usuario: userId, notificacoes: { email: emailDispatch.enviado, telefone: phoneDispatch.enviado }, ...(process.env.NODE_ENV === 'production' ? {} : { codigos_desenvolvimento: { email: emailDispatch.codigo_desenvolvimento, telefone: phoneDispatch.codigo_desenvolvimento } }) });
 };
 
 exports.verifyContact = (purpose) => async (req, res) => {
