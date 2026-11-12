@@ -68,7 +68,6 @@ app.use('/meraki/ecowayer/user/nivel_impacto', cors(corsOptions), nivelImpactoRo
 const imagemRouter = require('./routes/imagem.routes.js') // rotas responsaveis pela imagem
 app.use('/meraki/ecowayer/user/imagem', cors(corsOptions), imagemRouter)
 
-
 const qrCodeRouter = require('./routes/qr_code.routes.js') // rotas responsaveis pelos QR Codes de entrega
 app.use('/meraki/ecowayer/user/qr_code', cors(corsOptions), qrCodeRouter)
 
@@ -78,8 +77,29 @@ app.use('/meraki/ecowayer/user/qr_code_entrega', cors(corsOptions), qrCodeEntreg
 const leituraQrCodeRouter = require('./routes/leitura_qr_code.routes.js') // rotas responsaveis pelas leituras de QR Code
 app.use('/meraki/ecowayer/user/leitura_qr_code', cors(corsOptions), leituraQrCodeRouter)
 
+const voucherRouter = require('./routes/voucher.routes.js') // rotas responsaveis pelos vouchers
+app.use('/meraki/ecowayer/user/voucher', cors(corsOptions), voucherRouter)
+
+const voucherCatalogoRouter = require('./routes/voucher_catalogo.routes.js') // rotas responsaveis pelo catalogo de vouchers
+app.use('/meraki/ecowayer/user/voucher_catalogo', cors(corsOptions), voucherCatalogoRouter)
+
 const qrCodeVoucherRouter = require('./routes/qr_code_voucher.routes.js') // rotas responsaveis pelos vinculos QR Code x voucher
 app.use('/meraki/ecowayer/user/qr_code_voucher', cors(corsOptions), qrCodeVoucherRouter)
+
+const missaoRouter = require('./routes/missao.routes.js') // rotas responsaveis pelas missoes
+app.use('/meraki/ecowayer/user/missao', cors(corsOptions), missaoRouter)
+
+const usuarioMissaoRouter = require('./routes/usuario_missao.routes.js') // participacoes usuario x missao
+app.use('/meraki/ecowayer/user/usuario_missao', cors(corsOptions), usuarioMissaoRouter)
+
+const pontosRouter = require('./routes/pontos.routes.js') // registros de pontos do usuario
+app.use('/meraki/ecowayer/user/pontos', cors(corsOptions), pontosRouter)
+
+const insigniaRouter = require('./routes/insignia.routes.js') // rotas responsaveis pelas insignias
+app.use('/meraki/ecowayer/user/insignia', cors(corsOptions), insigniaRouter)
+
+const usuarioInsigniaRouter = require('./routes/usuario_insignia.routes.js') // associacao usuario x insignia
+app.use('/meraki/ecowayer/user/usuario_insignia', cors(corsOptions), usuarioInsigniaRouter)
 
 const entregaRouter = require('./routes/entrega.routes.js') // rotas responsaveis pelas entregas
 app.use('/meraki/ecowayer/user/entrega', cors(corsOptions), entregaRouter)
