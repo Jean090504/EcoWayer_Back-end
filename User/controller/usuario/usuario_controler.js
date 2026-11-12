@@ -13,7 +13,7 @@ const usuarioDAO = require('../../model/DAO/usuario/usuario.js')
 // Controllers que já existem e fornecem os dados das chaves estrangeiras.
 // CONFIRME os caminhos e os nomes das funções exportadas (module.exports) de cada um.
 const controlerGenero = require('../genero/genero_controler.js')                    // buscarGenero
-const controlerStatusUsuario = require('../status_usuario/controler_status_usuario.js') // buscarStatusUsuario
+const controlerStatusUsuario = require('../status_usuario/status_usuario_controler.js') // buscarStatusUsuario
 const controlerNivelImpacto = require('../nivel_impacto/nivel_impacto_controler.js')   // buscarNivelImpacto
 const controlerImagem = require('../imagem/imagem_controler.js')                    // buscarImagem
 

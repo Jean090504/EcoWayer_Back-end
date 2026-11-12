@@ -1,7 +1,6 @@
 /***************************************************************
  *  Objetivo: Arquivo responsavel pela manipulação de dados
  *            da tabela tbl_status_usuario no banco de dados
- *  Data: 10/11/2026
  *  Autor: Maxw
  *  Versão: 1.0
  ***************************************************************/
@@ -12,15 +11,11 @@ const knexConex = knex(knexConfig.development)
 
 const insertStatusUsuario = async function (statusUsuario) {
     try {
-        let sql = `insert into tbl_status_usuario (status)
-                   values (?)`
-
-        let result = await knexConex.raw(sql, [
-            statusUsuario.status
-        ])
+        let sql = `insert into tbl_status_usuario (status) values (?)`
+        let result = await knexConex.raw(sql, [statusUsuario.status])
 
         if (result)
-            return result[0].insertId // insertId do registro criado
+            return result[0].insertId
         else
             return false
     } catch (error) {
@@ -31,17 +26,11 @@ const insertStatusUsuario = async function (statusUsuario) {
 
 const updateStatusUsuario = async function (statusUsuario) {
     try {
-        let sql = `update tbl_status_usuario
-                      set status = ?
-                    where id = ?`
-
-        let result = await knexConex.raw(sql, [
-            statusUsuario.status,
-            statusUsuario.id
-        ])
+        let sql = `update tbl_status_usuario set status = ? where id = ?`
+        let result = await knexConex.raw(sql, [statusUsuario.status, statusUsuario.id])
 
         if (result)
-            return true
+            return result[0].affectedRows > 0
         else
             return false
     } catch (error) {
@@ -50,14 +39,13 @@ const updateStatusUsuario = async function (statusUsuario) {
     }
 }
 
-const selectAllStatusUsuarios = async function (limit = 50, offset = 0) {
+const selectAllStatusUsuarios = async function () {
     try {
-        let sql = `select * from tbl_status_usuario order by id limit ? offset ?`
-
-        let result = await knexConex.raw(sql, [limit, offset])
+        let sql = `select * from tbl_status_usuario order by id`
+        let result = await knexConex.raw(sql)
 
         if (result)
-            return result[0] // array de status
+            return result[0]
         else
             return false
     } catch (error) {
@@ -69,11 +57,10 @@ const selectAllStatusUsuarios = async function (limit = 50, offset = 0) {
 const selectStatusUsuarioById = async function (id) {
     try {
         let sql = `select * from tbl_status_usuario where id = ?`
-
         let result = await knexConex.raw(sql, [id])
 
         if (result)
-            return result[0] // array com o status encontrado (vazio se não existir)
+            return result[0]
         else
             return false
     } catch (error) {
@@ -85,11 +72,10 @@ const selectStatusUsuarioById = async function (id) {
 const deleteStatusUsuario = async function (id) {
     try {
         let sql = `delete from tbl_status_usuario where id = ?`
-
         let result = await knexConex.raw(sql, [id])
 
         if (result)
-            return true
+            return result[0].affectedRows > 0
         else
             return false
     } catch (error) {

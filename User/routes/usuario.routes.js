@@ -44,7 +44,7 @@ router.put('/:id', bodyParserJSON, async function (request, response) {
     let id = request.params.id
     let usuario = request.body
 
-    let result = await controlerUsuario.atualizarUsuario(usuario, id, contentType)
+    let result = await controlerUsuario.atualizarUsuario(request.body, request.params.id, contentType)
 
     response.status(result.status_code)
     response.json(result)
