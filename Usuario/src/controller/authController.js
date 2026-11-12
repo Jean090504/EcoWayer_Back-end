@@ -147,6 +147,15 @@ exports.forgotPassword = async (req, res) => {
   res.json({ mensagem: 'Se o contato estiver cadastrado, você receberá instruções para redefinir a senha.' });
 };
 
+exports.resendCode = async (req, res) => {
+  const contato = normalizeContact(req.body.contato);
+  const finalidade = req.body.finalidade === 'email' ? 'email' : req.body.finalidade === 'telefone' ? 'telefone' : null;
+  if (!finalidade || (!validators.email.test(contato) && !validators.phone(contato))) throw bad('Contato ou finalidade inválidos.');
+  const user = await dao.findByContact(contato);
+  if (user) await issueCode(user.id, contato, finalidade);
+  res.json({ mensagem: 'Se o contato estiver cadastrado, um novo código será enviado.' });
+};
+
 exports.resetPassword = async (req, res) => {
   const contact = normalizeContact(req.body.contato);
   const code = String(req.body.codigo_verificacao || '');
