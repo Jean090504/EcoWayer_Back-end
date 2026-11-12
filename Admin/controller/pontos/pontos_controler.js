@@ -5,8 +5,7 @@
 
 const configMessages = require('../modulo/configMessages.js')
 const pontosDAO = require('../../model/DAO/pontos/pontos.js')
-
-let taxaConversao = 1
+const configuracaoDAO = require('../../model/DAO/configuracao_pontos/configuracao_pontos.js')
 
 const respostaSucesso = (response) => ({
     status: configMessages.SUCCESS_RESPONSE.status,
@@ -17,6 +16,7 @@ const respostaSucesso = (response) => ({
 const buscarDashboardPontos = async function (periodo, grafico) {
     try {
         const dados = await pontosDAO.selectDashboard(periodo, grafico)
+        const taxaConversao = await configuracaoDAO.selectTaxaAtiva() ?? 1
         return respostaSucesso({
             metricas: {
                 taxaConversao: { valor: taxaConversao },
@@ -43,8 +43,9 @@ const atualizarTaxaConversao = async function (dados, contentType) {
         message.field = '[MULTIPLICADOR] INVÁLIDO (número maior que 0)'
         return message
     }
-    taxaConversao = valor
-    return respostaSucesso({ multiplicador: taxaConversao })
+    const atualizada = await configuracaoDAO.updateTaxa(valor)
+    if (!atualizada) return configMessages.ERROR_INTERNAL_SEVER_MODEL
+    return respostaSucesso({ multiplicador: valor })
 }
 
 // Transforma a linha "achatada" do JOIN no JSON com as chaves estrangeiras aninhadas

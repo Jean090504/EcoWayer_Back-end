@@ -28,12 +28,19 @@ apiRoutes.use(requireAiToken)
 
 apiRoutes.post('/assistant/chat', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { message, history = [], audience = 'user' } = req.body
+    const { message, history = [], audience = 'user', context = null } = req.body
     if (!String(message || '').trim()) {
       res.status(400).json({ error: 'O campo message é obrigatório.' })
       return
     }
-    const prompt = `Você é o assistente do EcoWayer. Responda exclusivamente em português do Brasil, com educação e clareza. Fale apenas sobre a plataforma EcoWayer e não invente dados, produtos, regras ou endereços. Se o assunto for externo ao EcoWayer, explique educadamente que só pode ajudar com a plataforma. Mensagem: ${String(message).slice(0, 2000)}`
+    const pergunta = String(message).toLocaleLowerCase('pt-BR')
+    if (context?.pontosUltimosDoisDias != null && /ponto|pontua/.test(pergunta) && /(últimos|ultimos|dois|2)/.test(pergunta)) {
+      const total = Number(context.pontosUltimosDoisDias || 0).toLocaleString('pt-BR')
+      res.json({ resposta: `Nos últimos 2 dias, foram gerados ${total} pontos no EcoWayer.`, model: 'painel-ecowayer', provider: 'dashboard' })
+      return
+    }
+    const dadosDoPainel = context ? `Dados reais disponíveis do painel: ${JSON.stringify(context).slice(0, 4000)}. Use esses dados quando responder. Nunca diga que não tem acesso ao painel quando a informação estiver nesses dados.` : 'Nenhum dado do painel foi fornecido para esta pergunta; não invente números.'
+    const prompt = `Você é a Eco, assistente do EcoWayer. Responda exclusivamente em português do Brasil, com naturalidade, clareza e objetividade. Vá direto ao ponto: use no máximo 3 frases curtas ou até 3 bullets quando uma lista realmente ajudar. Não faça apresentações longas, não repita o contexto e não liste todos os módulos sem que isso seja pedido. Fale apenas sobre a plataforma EcoWayer e não invente dados, produtos, regras ou endereços. Se o assunto for externo ao EcoWayer, diga em uma frase que só pode ajudar com a plataforma. ${dadosDoPainel} Mensagem: ${String(message).slice(0, 2000)}`
     const contexto = audience === 'admin'
       ? 'Você atende um administrador do EcoWayer. Oriente sobre o painel, categorias, regras de pontuação, itens, usuários, chamados, pontos de coleta e relatórios. Não sugira compras.'
       : 'Você atende um usuário do EcoWayer. Ajude a encontrar produtos recicláveis e a entender categorias, pontos de coleta e o funcionamento da plataforma.'

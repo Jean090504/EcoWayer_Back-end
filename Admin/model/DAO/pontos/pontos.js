@@ -119,7 +119,9 @@ const calcularJanela = (dataReferencia, periodo) => {
     if (periodo === 'mensal') {
         const data = new Date(`${fim}T00:00:00Z`)
         const inicio = `${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, '0')}-01`
-        return { inicio, fim: deslocarDias(fim, 1) }
+        data.setUTCMonth(data.getUTCMonth() + 1, 1)
+        const proximoMes = `${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, '0')}-01`
+        return { inicio, fim: proximoMes }
     }
     return { inicio: deslocarDias(fim, -6), fim: deslocarDias(fim, 1) }
 }
@@ -184,8 +186,18 @@ const selectDashboard = async function (period = 'semanal', grafico = '30d') {
                 AND (SELECT h.status FROM tbl_historico_anuncio h WHERE h.id_anuncio = a.id ORDER BY h.data_alteracao DESC, h.id DESC LIMIT 1) = 'ativo') AS anunciosAtivos,
             (SELECT COUNT(DISTINCT ad.id_denuncias) FROM tbl_alertas_denuncias ad
               JOIN tbl_alertas a ON a.id = ad.id_alertas
-             WHERE a.criado_em >= ? AND a.criado_em < ?) AS denunciasNoMes
+             WHERE a.criado_em >= ? AND a.criado_em < ?) AS denunciasNoMes,
+            (SELECT COUNT(*) FROM tbl_voucher v
+              WHERE v.data_resgate >= ? AND v.data_resgate < ? AND v.status <> 'cancelado'
+                AND v.id_gift_card IS NOT NULL) AS giftCardsResgatados,
+            (SELECT COUNT(DISTINCT CONCAT(v.nome_parceiro, '|', v.beneficio)) FROM tbl_voucher v
+              WHERE v.data_resgate >= ? AND v.data_resgate < ? AND v.status <> 'cancelado') AS beneficiosResgatados,
+            COALESCE((SELECT SUM(v.pontos_utilizados) FROM tbl_voucher v
+              WHERE v.data_resgate >= ? AND v.data_resgate < ? AND v.status <> 'cancelado'), 0) AS pontosGastos
     `, [
+        janela.inicio, janela.fim,
+        janela.inicio, janela.fim,
+        janela.inicio, janela.fim,
         janela.inicio, janela.fim,
         janela.inicio, janela.fim,
         janela.inicio, janela.fim,
@@ -271,6 +283,9 @@ const selectDashboard = async function (period = 'semanal', grafico = '30d') {
             usuariosTotal: Number(totais[0]?.usuariosTotal || 0),
             anunciosAtivos: Number(totais[0]?.anunciosAtivos || 0),
             denunciasNoMes: Number(totais[0]?.denunciasNoMes || 0),
+            giftCardsResgatados: Number(totais[0]?.giftCardsResgatados || 0),
+            beneficiosResgatados: Number(totais[0]?.beneficiosResgatados || 0),
+            pontosGastos: Number(totais[0]?.pontosGastos || 0),
             variacoes: {
                 usuariosAtivosHoje: percentual(totais[0]?.usuariosAtivosHoje, comparativos[0]?.ativosMesAnterior),
                 usuariosCadastrados: percentual(totais[0]?.usuariosCadastrados, comparativos[0]?.cadastradosMesAnterior),

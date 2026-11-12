@@ -66,6 +66,48 @@ security:
 # PATHS
 # ============================================================
 paths:
+  /meraki/ecowayer/admin/gift-card:
+    get:
+      tags: [Vouchers]
+      summary: Lista o catálogo de gift cards configurado pelo admin
+      responses:
+        '200': { description: Catálogo retornado }
+    post:
+      tags: [Vouchers]
+      summary: Cadastra um gift card configurável
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GiftCardInput' }
+      responses:
+        '201': { description: Gift card criado }
+  /meraki/ecowayer/admin/gift-card/sincronizar:
+    post:
+      tags: [Vouchers]
+      summary: Sincroniza marcas de um catálogo público
+      responses:
+        '200': { description: Catálogo sincronizado }
+  /meraki/ecowayer/admin/gift-card/{id}:
+    put:
+      tags: [Vouchers]
+      summary: Atualiza valor, pontos ou status do gift card
+      parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GiftCardInput' }
+      responses:
+        '200': { description: Gift card atualizado }
+    delete:
+      tags: [Vouchers]
+      summary: Remove um gift card sem resgates vinculados
+      parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Gift card removido }
   # --------------------------------------------------------
   # USUÁRIOS
   # --------------------------------------------------------
@@ -3619,6 +3661,17 @@ components:
   # SCHEMAS
   # --------------------------------------------------------
   schemas:
+    GiftCardInput:
+      type: object
+      required: [slug_api, nome, valor_reais, pontos_resgate]
+      properties:
+        slug_api: { type: string, example: google-play-br }
+        nome: { type: string, example: Google Play Brasil }
+        valor_reais: { type: number, format: float, example: 50 }
+        pontos_resgate: { type: integer, example: 2500 }
+        imagem_url: { type: string, nullable: true }
+        categoria: { type: string, nullable: true }
+        status: { type: string, enum: [ativo, inativo] }
     RespostaBase:
       type: object
       description: Cabeçalho padrão de toda resposta da API (arquivo de mensagens do backend).

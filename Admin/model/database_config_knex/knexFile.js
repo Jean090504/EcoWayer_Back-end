@@ -1,7 +1,9 @@
 const mysql = require('mysql2/promise');
 
 // Senhas candidatas (a do .env tem prioridade, se existir)
-const senhas = [process.env.DB_PASSWORD, 'bcd127', '12345678', '152500aszX@_'].filter(Boolean);
+// O XAMPP local normalmente usa root sem senha; manter a senha vazia como candidata.
+const senhas = [process.env.DB_PASSWORD, '', 'bcd127', '12345678', '152500aszX@_']
+  .filter((password) => password !== undefined);
 
 const baseConfig = {
   host: 'localhost',

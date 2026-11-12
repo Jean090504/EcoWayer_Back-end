@@ -11,7 +11,7 @@ const voucherDAO = require('../../model/DAO/voucher/voucher.js')
 // ---------- AJUSTAR CONFORME O BANCO (o print estava cortado) ----------
 // Conferir com: SHOW COLUMNS FROM tbl_voucher;
 const NOME_PARCEIRO_MAX = 150                               // print mostrava "VARCHAR(15..."
-const STATUS_VALIDOS = ['ativo', 'utilizado', 'expirado']   // valores do ENUM da coluna status
+const STATUS_VALIDOS = ['ativo', 'utilizado', 'expirado', 'cancelado']
 
 // ---------- helpers ----------
 // Compara só a parte antes do ';' (aceita "application/json; charset=utf-8")
@@ -53,7 +53,8 @@ const montarDados = (voucher) => ({
     data_expiracao: normalizarDataHora(voucher.data_expiracao),
     status: voucher.status.trim(),
     pontos_utilizados: Number(voucher.pontos_utilizados),
-    id_usuario: Number(voucher.id_usuario)
+    id_usuario: Number(voucher.id_usuario),
+    id_gift_card: idValido(voucher.id_gift_card) ? Number(voucher.id_gift_card) : null
 })
 
 // ---------- INSERIR ----------
@@ -68,7 +69,19 @@ const inserirNovoVoucher = async function (voucher, contentType) {
                 return validar // 400
             } else {
                 let dados = montarDados(voucher)
-                let idInserido = await voucherDAO.insertVoucher(dados)
+                let resultado = dados.id_gift_card
+                    ? await voucherDAO.insertVoucherComDebito(dados)
+                    : { ok: true, id: await voucherDAO.insertVoucher(dados) }
+
+                if (resultado.motivo === 'SALDO_INSUFICIENTE') {
+                    message.ERROR_BAD_REQUEST.field = `[PONTOS_UTILIZADOS] saldo insuficiente (disponível: ${resultado.saldo})`
+                    return message.ERROR_BAD_REQUEST
+                }
+                if (resultado.motivo === 'GIFT_CARD_INATIVO') {
+                    message.ERROR_BAD_REQUEST.field = '[ID_GIFT_CARD] gift card inexistente ou inativo'
+                    return message.ERROR_BAD_REQUEST
+                }
+                let idInserido = resultado.id
 
                 if (idInserido) {
                     message.DEFAULT_MESSAGE.status = message.SUCCESS_CREATED_ITEM.status
@@ -274,6 +287,11 @@ const validarDados = async function (voucher) {
 
     if (!idValido(voucher.id_usuario)) {
         message.ERROR_BAD_REQUEST.field = '[ID_USUARIO] INVÁLIDO (obrigatório, inteiro maior que zero)'
+        return message.ERROR_BAD_REQUEST
+    }
+
+    if (voucher.id_gift_card !== undefined && voucher.id_gift_card !== null && !idValido(voucher.id_gift_card)) {
+        message.ERROR_BAD_REQUEST.field = '[ID_GIFT_CARD] INVÁLIDO (inteiro maior que zero)'
         return message.ERROR_BAD_REQUEST
     }
 
