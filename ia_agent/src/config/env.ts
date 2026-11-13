@@ -15,6 +15,7 @@ interface AppEnvironment {
   AI_SECRET_TOKEN: string
   AI_TIMEOUT_MS: number
   MAX_FILE_SIZE_BYTES: number
+  FRONTEND_ORIGINS: string[]
   GEMINI_API_KEY: string
   GEMINI_MODEL: string
 }
@@ -43,9 +44,10 @@ export const env: AppEnvironment = {
   DB_PASS: process.env.DB_PASS || '',
   DB_NAME: requireEnvString('DB_NAME', 'ecowayer_db'),
   DB_CONNECTION_LIMIT: getEnvNumber('DB_CONNECTION_LIMIT', 10),
-  AI_SECRET_TOKEN: requireEnvString('AI_SECRET_TOKEN', 'ecowayer_secure_token_ai_2026'),
+  AI_SECRET_TOKEN: requireEnvString('AI_SECRET_TOKEN', process.env.NODE_ENV === 'development' ? 'ecowayer_secure_token_ai_2026' : undefined),
   AI_TIMEOUT_MS: getEnvNumber('AI_TIMEOUT_MS', 1500),
   MAX_FILE_SIZE_BYTES: getEnvNumber('MAX_FILE_SIZE_BYTES', 10 * 1024 * 1024),
+  FRONTEND_ORIGINS: (process.env.FRONTEND_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173').split(',').map((origin) => origin.trim()).filter(Boolean),
   GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
   GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-flash-lite-latest'
 }

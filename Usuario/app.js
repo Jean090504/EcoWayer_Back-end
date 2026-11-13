@@ -4,16 +4,27 @@
  * -> Arquivo responsavel por iniciar a api e gerenciar suas rotas
  *********************************/
 
+require('dotenv').config()
 const express = require("express")
 const cors = require("cors")
+const rateLimit = require('express-rate-limit')
+const autenticacaoUsuario = require('./middleware/autenticacaoUsuario.js')
 const app = express();
 
+const origensPermitidas = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
+    .split(',').map((origem) => origem.trim()).filter(Boolean)
 const corsOptions = {
-    origin: "*",
+    origin: (origin, callback) => {
+        if (!origin || origensPermitidas.includes(origin)) return callback(null, true)
+        return callback(new Error('Origem não permitida pelo CORS.'))
+    },
     methods: "GET, POST, PUT, DELETE, OPTIONS",
     allowedHeaders: ["Content-Type", "Authorization"],
 }
 app.use(cors(corsOptions))
+app.use(express.json({ limit: '1mb' }))
+app.use('/meraki/ecowayer/user', rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-8', legacyHeaders: false }))
+app.use('/meraki/ecowayer/user', autenticacaoUsuario)
 
 // ----------------- [ Rotas da API] --------------
 
@@ -123,7 +134,6 @@ const mensagensRouter = require('./routes/mensagens.routes.js')   // Rotas respo
 app.use('/meraki/ecowayer/user/mensagens', cors(corsOptions), mensagensRouter)
 
 const notificacaoRouter = require('./routes/notificaco.routes.js')
-app.use('/meraki/ecowayer/user/mensagens', cors(corsOptions))
 
 const negociacaoRouter = require('./routes/negociacao.routes.js') // rotas responsaveis pela negociacao
 app.use('/meraki/ecowayer/user/negociacao',cors(corsOptions),negociacaoRouter)

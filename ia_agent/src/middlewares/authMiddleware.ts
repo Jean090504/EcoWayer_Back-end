@@ -1,7 +1,6 @@
 
 import { Request, Response, NextFunction } from 'express'
-
-const API_TOKEN_SECRET = process.env.AI_SECRET_TOKEN || 'ecowayer_secure_token_ai_2026'
+import { env } from '../config/env.js'
 
 export const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   const authorizationHeader = req.headers.authorization
@@ -15,7 +14,7 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
 
   const tokenValue = authorizationHeader.split(' ')[1]
 
-  if (tokenValue !== API_TOKEN_SECRET) {
+  if (!env.AI_SECRET_TOKEN || tokenValue !== env.AI_SECRET_TOKEN) {
     res.status(403).json({
       error: 'Acesso proibido: credencial de acesso inválida ou expirada.'
     })

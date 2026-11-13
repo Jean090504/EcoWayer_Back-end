@@ -6,9 +6,16 @@
 const express = require('express')
 const router = express.Router()
 const bodyParser = require('body-parser')
+const rateLimit = require('express-rate-limit')
 const bodyParserJSON = bodyParser.json()
 
 const controlerUsuario = require('../controller/usuario/usuario_controler.js')
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false })
+
+router.post('/login', loginLimiter, bodyParserJSON, async function (request, response) {
+    let result = await controlerUsuario.loginUsuario(request.body?.email, request.body?.senha)
+    response.status(result.status_code).json(result)
+})
 
 // Cadastrar novo usuário (cria também e-mail, telefone, conta e vínculo com o endereço)
 router.post('/', bodyParserJSON, async function (request, response) {

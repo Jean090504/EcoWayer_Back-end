@@ -15,8 +15,13 @@ const cors = require("cors")
 const autenticacaoAdmin = require('./middleware/autenticacaoAdmin.js')
 const app = express();
 
+const origensPermitidas = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
+    .split(',').map((origem) => origem.trim()).filter(Boolean)
 const corsOptions = {
-    origin: "*",
+    origin: (origin, callback) => {
+        if (!origin || origensPermitidas.includes(origin)) return callback(null, true)
+        return callback(new Error('Origem não permitida pelo CORS.'))
+    },
     methods: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     allowedHeaders: ["Content-Type", "Authorization"],
 }
@@ -72,6 +77,9 @@ app.use('/meraki/ecowayer/admin/pontos', cors(corsOptions), pontosRouter)
 
 const voucherRouter = require('./routes/voucher.routes.js') // Rotas Responsaveis pelo Voucher
 app.use('/meraki/ecowayer/admin/voucher', cors(corsOptions), voucherRouter)
+
+const giftCardRouter = require('./routes/gift_card.routes.js') // Rotas do catálogo de gift cards
+app.use('/meraki/ecowayer/admin/gift-card', cors(corsOptions), giftCardRouter)
 
 const insignaRouter = require('./routes/insigna.routes.js') // Rotas Responsaveis pelo Voucher
 app.use('/meraki/ecowayer/admin/insigna', cors(corsOptions), insignaRouter)

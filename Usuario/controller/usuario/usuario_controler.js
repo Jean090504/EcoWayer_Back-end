@@ -257,6 +257,35 @@ const buscarUsuario = async function (id) {
     }
 }
 
+const loginUsuario = async function (email, senha) {
+    let message = JSON.parse(JSON.stringify(configMessages))
+    try {
+        if (typeof email !== 'string' || !email.trim() || typeof senha !== 'string' || !senha) {
+            message.ERROR_BAD_REQUEST.field = '[EMAIL E SENHA] OBRIGATÓRIOS'
+            return message.ERROR_BAD_REQUEST
+        }
+        const encontrado = (await usuarioDAO.selectLoginUsuario(email.trim()))?.[0]
+        if (!encontrado || !(await bcrypt.compare(senha, encontrado.senha))) {
+            return { status: false, status_code: 401, message: 'E-mail ou senha inválidos.' }
+        }
+        if (!process.env.JWT_SECRET) return message.ERROR_INTERNAL_CONTROLER
+        const token = require('jsonwebtoken').sign(
+            { id: encontrado.id, email: encontrado.email, tipo: 'usuario' },
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRES_IN || '1h' },
+        )
+        delete encontrado.senha
+        message.DEFAULT_MESSAGE.status = true
+        message.DEFAULT_MESSAGE.status_code = 200
+        message.DEFAULT_MESSAGE.message = 'Login realizado com sucesso.'
+        message.DEFAULT_MESSAGE.response = { token, usuario: encontrado }
+        return message.DEFAULT_MESSAGE
+    } catch (error) {
+        console.log(error)
+        return message.ERROR_INTERNAL_CONTROLER
+    }
+}
+
 // "Excluir" = desativar a conta (status 'desativado'); o histórico do usuário é preservado.
 const excluirUsuario = async function (id) {
     let message = JSON.parse(JSON.stringify(configMessages))
@@ -466,6 +495,7 @@ module.exports = {
     atualizarUsuario,
     listarUsuario,
     buscarUsuario,
+    loginUsuario,
     excluirUsuario,
     validarDados
 }

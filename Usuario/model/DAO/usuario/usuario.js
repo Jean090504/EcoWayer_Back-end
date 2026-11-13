@@ -102,6 +102,23 @@ const selectByIdUsuario = async function (id) {
     }
 }
 
+const selectLoginUsuario = async function (email) {
+    try {
+        const sql = `SELECT u.id, u.nome, e.email, c.senha, i.url AS foto
+                     FROM tbl_usuario u
+                     INNER JOIN tbl_email e ON e.id_usuario = u.id
+                     INNER JOIN tbl_conta c ON c.id_email = e.id
+                     LEFT JOIN tbl_imagem i ON i.id = u.id_imagem
+                     INNER JOIN tbl_status_usuario s ON s.id = u.id_status_usuario
+                     WHERE LOWER(e.email) = LOWER(?) AND s.status = 'ativo'
+                     LIMIT 1;`
+        const result = await knexConex.raw(sql, [email])
+        return Array.isArray(result) ? result[0] : false
+    } catch (error) {
+        return false
+    }
+}
+
 const selectAllUsuario = async function () {
     try {
         let sql = `${SQL_SELECT_USUARIO};`
@@ -233,6 +250,7 @@ module.exports = {
     insertUsuario,
     updateUsuario,
     selectByIdUsuario,
+    selectLoginUsuario,
     selectAllUsuario,
     selectEnderecosByUsuario,
     selectDuplicados,
