@@ -10,12 +10,12 @@ const knexConex = knex(knexConfig.development)
 
 const insertEndereco = async function (endereco) {
     try {
-        let sql = `INSERT INTO tbl_endereco (cep, rua, numero, complemento, bairro, cidade, estado, sigla, id_externo, latitude, longitude)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`
+        let sql = `INSERT INTO tbl_endereco (cep, rua, numero, complemento, bairro, cidade, estado, sigla, id_externo)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`
         let result = await knexConex.raw(sql, [
             endereco.cep, endereco.rua, endereco.numero, endereco.complemento,
             endereco.bairro, endereco.cidade, endereco.estado, endereco.sigla,
-            endereco.id_externo, endereco.latitude, endereco.longitude
+            endereco.id_externo
         ])
 
         // devolve o id gerado (result[0] é o ResultSetHeader do MySQL)
@@ -30,12 +30,12 @@ const updateEndereco = async function (endereco) {
     try {
         let sql = `UPDATE tbl_endereco
                    SET cep = ?, rua = ?, numero = ?, complemento = ?, bairro = ?, cidade = ?,
-                       estado = ?, sigla = ?, id_externo = ?, latitude = ?, longitude = ?
+                       estado = ?, sigla = ?, id_externo = ?
                    WHERE id = ?;`
         let result = await knexConex.raw(sql, [
             endereco.cep, endereco.rua, endereco.numero, endereco.complemento,
             endereco.bairro, endereco.cidade, endereco.estado, endereco.sigla,
-            endereco.id_externo, endereco.latitude, endereco.longitude, endereco.id
+            endereco.id_externo, endereco.id
         ])
 
         return result ? true : false
@@ -47,7 +47,7 @@ const updateEndereco = async function (endereco) {
 
 const selectByIdEndereco = async function (id) {
     try {
-        let sql = `SELECT id, cep, rua, numero, complemento, bairro, cidade, estado, sigla, id_externo, latitude, longitude
+        let sql = `SELECT id, cep, rua, numero, complemento, bairro, cidade, estado, sigla, id_externo
                    FROM tbl_endereco WHERE id = ?;`
         let result = await knexConex.raw(sql, [id])
 
@@ -57,13 +57,14 @@ const selectByIdEndereco = async function (id) {
             return false
         }
     } catch (error) {
+        console.log(error)
         return false
     }
 }
 
 const selectAllEndereco = async function () {
     try {
-        let sql = `SELECT id, cep, rua, numero, complemento, bairro, cidade, estado, sigla, id_externo, latitude, longitude
+        let sql = `SELECT id, cep, rua, numero, complemento, bairro, cidade, estado, sigla, id_externo
                    FROM tbl_endereco;`
         let result = await knexConex.raw(sql)
 
@@ -73,6 +74,7 @@ const selectAllEndereco = async function () {
             return false
         }
     } catch (error) {
+        console.log(error)
         return false
     }
 }
@@ -91,6 +93,7 @@ const selectEnderecoEmUso = async function (id) {
             return false
         }
     } catch (error) {
+        console.log(error)
         return false
     }
 }
@@ -102,6 +105,7 @@ const deleteEndereco = async function (id) {
 
         return result ? true : false
     } catch (error) {
+        console.log(error)
         return false
     }
 }
