@@ -348,5 +348,6 @@ module.exports = {
     atualizarEntrega,
     listarEntregas,
     buscarEntrega,
-    excluirEntrega
+    excluirEntrega,
+    selectEntregaById
 }

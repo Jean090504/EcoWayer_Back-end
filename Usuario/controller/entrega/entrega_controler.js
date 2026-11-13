@@ -1,12 +1,15 @@
 /***************************************************************
  *  Objetivo: Arquivo responsavel pela validação, tratamento e manipulação de dados
  *            da tabela tbl_entrega (entregas de itens negociados)
+ *            e das imagens vinculadas a ela (tbl_imagem_entrega)
  *  Autor: Gustavo
- *  Versão: 1.0
+ *  Versão: 1.1
  ***************************************************************/
 
 const configMessages = require('../modulo/configMessages.js')
 const entregaDAO = require('../../model/DAO/entrega/entrega.js')
+const imagemDAO = require('../../model/DAO/imagem/imagem.js')
+const controllerImagemEntrega = require('./imagem_entrega_controler.js')
 
 const STATUS_VALIDOS = ['pendente', 'concluida', 'cancelada']
 const REGEX_DATA = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/
@@ -36,19 +39,33 @@ const inserirNovaEntrega = async function (entrega, contentType) {
 
         if (validar) {
             return validar // 400
+        }
+
+        let validarImg = await validarImagens(entrega.imagem)
+
+        if (validarImg) {
+            return validarImg // 400 ou 500
         } else {
             let entregaNormalizada = normalizarDados(entrega)
+            let imagens = normalizarImagens(entrega.imagem)
             let id = await entregaDAO.insertEntrega(entregaNormalizada)
 
             if (id) {
-                entregaNormalizada.id = id
+                let vinculosOk = await inserirImagensDaEntrega(id, imagens)
+                let entregaCriada = await buscarEntregaCompleta(id)
 
-                message.DEFAULT_MESSAGE.status = message.SUCCESS_CREATED_ITEM.status
-                message.DEFAULT_MESSAGE.status_code = message.SUCCESS_CREATED_ITEM.status_code
-                message.DEFAULT_MESSAGE.message = message.SUCCESS_CREATED_ITEM.message
-                message.DEFAULT_MESSAGE.response = { entrega: entregaNormalizada }
+                if (entregaCriada) {
+                    let sucesso = vinculosOk ? message.SUCCESS_CREATED_ITEM : message.SUCCESS_CREATED_WARNING
 
-                return message.DEFAULT_MESSAGE // 201
+                    message.DEFAULT_MESSAGE.status = sucesso.status
+                    message.DEFAULT_MESSAGE.status_code = sucesso.status_code
+                    message.DEFAULT_MESSAGE.message = sucesso.message
+                    message.DEFAULT_MESSAGE.response = { entrega: entregaCriada }
+
+                    return message.DEFAULT_MESSAGE // 201
+                } else {
+                    return message.ERROR_INTERNAL_SEVER_MODEL // 500
+                }
             } else {
                 return message.ERROR_INTERNAL_SEVER_MODEL // 500
             }
@@ -59,6 +76,7 @@ const inserirNovaEntrega = async function (entrega, contentType) {
     }
 }
 
+// Se o body trouxer "imagem", os vínculos antigos são apagados e regravados; se não trouxer, as imagens ficam como estão
 const atualizarEntrega = async function (id, entrega, contentType) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
@@ -84,19 +102,46 @@ const atualizarEntrega = async function (id, entrega, contentType) {
 
         if (validar) {
             return validar // 400
+        }
+
+        let validarImg = await validarImagens(entrega.imagem)
+
+        if (validarImg) {
+            return validarImg // 400 ou 500
         } else {
             let entregaNormalizada = normalizarDados(entrega)
             entregaNormalizada.id = Number(id)
 
+            let imagens = normalizarImagens(entrega.imagem)
             let result = await entregaDAO.updateEntrega(entregaNormalizada)
 
             if (result) {
-                message.DEFAULT_MESSAGE.status = message.SUCCESS_UPDETED_ITEM.status
-                message.DEFAULT_MESSAGE.status_code = message.SUCCESS_UPDETED_ITEM.status_code
-                message.DEFAULT_MESSAGE.message = message.SUCCESS_UPDETED_ITEM.message
-                message.DEFAULT_MESSAGE.response = { entrega: entregaNormalizada }
+                let vinculosOk = true
 
-                return message.DEFAULT_MESSAGE // 201
+                if (imagens !== undefined) {
+                    let apagou = await controllerImagemEntrega.excluirImagensIdEntrega(Number(id))
+
+                    if (apagou.status_code == 200) {
+                        vinculosOk = await inserirImagensDaEntrega(Number(id), imagens)
+                    } else {
+                        return message.ERROR_INTERNAL_SEVER_MODEL // 500
+                    }
+                }
+
+                let entregaAtualizada = await buscarEntregaCompleta(Number(id))
+
+                if (entregaAtualizada) {
+                    let sucesso = vinculosOk ? message.SUCCESS_UPDETED_ITEM : message.SUCCESS_CREATED_WARNING
+
+                    message.DEFAULT_MESSAGE.status = sucesso.status
+                    message.DEFAULT_MESSAGE.status_code = sucesso.status_code
+                    message.DEFAULT_MESSAGE.message = sucesso.message
+                    message.DEFAULT_MESSAGE.response = { entrega: entregaAtualizada }
+
+                    return message.DEFAULT_MESSAGE // 201
+                } else {
+                    return message.ERROR_INTERNAL_SEVER_MODEL // 500
+                }
             } else {
                 return message.ERROR_INTERNAL_SEVER_MODEL // 500
             }
@@ -114,6 +159,11 @@ const listarEntregas = async function () {
         let result = await entregaDAO.selectAllEntregas()
 
         if (result && result.length > 0) {
+            for (let entrega of result) {
+                formatarEntrega(entrega)
+                await anexarRelacoes(entrega)
+            }
+
             message.DEFAULT_MESSAGE.status = message.SUCCESS_RESPONSE.status
             message.DEFAULT_MESSAGE.status_code = message.SUCCESS_RESPONSE.status_code
             message.DEFAULT_MESSAGE.response.count = result.length
@@ -143,6 +193,9 @@ const buscarEntrega = async function (id) {
         let result = await entregaDAO.selectEntregaById(Number(id))
 
         if (result && result.length > 0) {
+            formatarEntrega(result[0])
+            await anexarRelacoes(result[0])
+
             message.DEFAULT_MESSAGE.status = message.SUCCESS_RESPONSE.status
             message.DEFAULT_MESSAGE.status_code = message.SUCCESS_RESPONSE.status_code
             message.DEFAULT_MESSAGE.response.entrega = result[0]
@@ -159,6 +212,7 @@ const buscarEntrega = async function (id) {
     }
 }
 
+// Apaga os vínculos com imagem ANTES de excluir a entrega, por causa da FK
 const excluirEntrega = async function (id) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
@@ -174,6 +228,12 @@ const excluirEntrega = async function (id) {
             return message.ERROR_INTERNAL_SEVER_MODEL // 500
         } else if (!existente || existente.length == 0) {
             return message.ERROR_NOT_FOUND // 404
+        }
+
+        let apagou = await controllerImagemEntrega.excluirImagensIdEntrega(Number(id))
+
+        if (apagou.status_code != 200) {
+            return message.ERROR_INTERNAL_SEVER_MODEL // 500
         }
 
         let result = await entregaDAO.deleteEntrega(Number(id))
@@ -231,6 +291,103 @@ const normalizarDados = function (entrega) {
         data_entrega: entrega.data_entrega.trim(),
         id_anuncio: Number(entrega.id_anuncio),
         id_usuario: Number(entrega.id_usuario)
+    }
+}
+
+// ----------------------------------- IMAGENS (tbl_imagem_entrega) -----------------------------------
+
+// "imagem" é opcional; se vier, precisa ser lista de { id } e cada imagem precisa existir
+const validarImagens = async function (imagens) {
+    let message = JSON.parse(JSON.stringify(configMessages))
+
+    if (imagens === undefined) {
+        return false
+    }
+
+    if (!Array.isArray(imagens)) {
+        message.ERROR_BAD_REQUEST.field = '[IMAGEM] INVÁLIDO (envie uma lista de objetos { "id": 1 })'
+        return message.ERROR_BAD_REQUEST // 400
+    }
+
+    for (let imagem of imagens) {
+        if (imagem === null || typeof imagem !== 'object' || !idValido(imagem.id)) {
+            message.ERROR_BAD_REQUEST.field = '[IMAGEM] INVÁLIDO (cada imagem precisa de um id inteiro maior que 0)'
+            return message.ERROR_BAD_REQUEST // 400
+        }
+
+        let existe = await imagemDAO.selectByIdImagem(Number(imagem.id))
+
+        if (existe === false) {
+            return message.ERROR_INTERNAL_SEVER_MODEL // 500
+        } else if (existe.length == 0) {
+            message.ERROR_BAD_REQUEST.field = `[IMAGEM] O ID ${Number(imagem.id)} NÃO EXISTE`
+            return message.ERROR_BAD_REQUEST // 400
+        }
+    }
+
+    return false
+}
+
+// Remove ids repetidos (undefined quando "imagem" não veio no body)
+const normalizarImagens = function (imagens) {
+    if (!Array.isArray(imagens)) {
+        return undefined
+    }
+
+    return [...new Set(imagens.map(imagem => Number(imagem.id)))].map(id => ({ id }))
+}
+
+// Grava os vínculos entrega x imagem; devolve false no primeiro que falhar
+const inserirImagensDaEntrega = async function (idEntrega, imagens) {
+    if (!imagens || imagens.length == 0) {
+        return true
+    }
+
+    for (let imagem of imagens) {
+        let result = await controllerImagemEntrega.inserirNovoImagemEntrega({
+            id_imagem: Number(imagem.id),
+            id_entrega: Number(idEntrega)
+        })
+
+        if (result.status_code != 201) {
+            return false
+        }
+    }
+
+    return true
+}
+
+// Preenche entrega.imagem (se a busca falhar ou vier vazia, fica [])
+const anexarImagens = async function (entrega) {
+    let result = await controllerImagemEntrega.buscarImagensIdEntrega(entrega.id)
+
+    entrega.imagem = result.status_code == 200 ? result.response.imagem : []
+
+    return entrega
+}
+
+const anexarRelacoes = async function (entrega) {
+    await anexarImagens(entrega)
+
+    return entrega
+}
+
+// DECIMAL vem como texto do mysql2: converte o peso para número
+const formatarEntrega = function (entrega) {
+    entrega.peso_estimado = Number(entrega.peso_estimado)
+
+    return entrega
+}
+
+// Busca a entrega já formatada e com as imagens (ou false)
+const buscarEntregaCompleta = async function (id) {
+    let result = await entregaDAO.selectEntregaById(Number(id))
+
+    if (result && result.length > 0) {
+        formatarEntrega(result[0])
+        return await anexarRelacoes(result[0])
+    } else {
+        return false
     }
 }
 
