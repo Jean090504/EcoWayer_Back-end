@@ -122,6 +122,9 @@ app.use('/meraki/ecowayer/user/conversa', cors(corsOptions), conversaRouter)
 const mensagensRouter = require('./routes/mensagens.routes.js')   // Rotas responsaveis pelas mensagens
 app.use('/meraki/ecowayer/user/mensagens', cors(corsOptions), mensagensRouter)
 
+const notificacaoRouter = require('./routes/notificaco.routes.js')
+app.use('/meraki/ecowayer/user/mensagens', cors(corsOptions))
+
 const PORT = process.env.PORT || 8070
 app.listen(PORT, function () {
     console.log(`API DA LOCADORA FUNCIONANDO EM http://localhost:${PORT} E AGUARDANDO NOVAS REQUISIÇÕES...`);
