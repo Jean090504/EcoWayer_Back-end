@@ -73,6 +73,9 @@ app.use('/meraki/ecowayer/admin/pontos', cors(corsOptions), pontosRouter)
 const voucherRouter = require('./routes/voucher.routes.js') // Rotas Responsaveis pelo Voucher
 app.use('/meraki/ecowayer/admin/voucher', cors(corsOptions), voucherRouter)
 
+const giftCardRouter = require('./routes/gift_card.routes.js') // Rotas do catálogo de gift cards
+app.use('/meraki/ecowayer/admin/gift-card', cors(corsOptions), giftCardRouter)
+
 const insignaRouter = require('./routes/insigna.routes.js') // Rotas Responsaveis pelo Voucher
 app.use('/meraki/ecowayer/admin/insigna', cors(corsOptions), insignaRouter)
 
