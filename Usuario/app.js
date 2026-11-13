@@ -49,17 +49,26 @@ app.use('/meraki/ecowayer/user/telefone_verificacao', cors(corsOptions), telefon
 const contaRouter = require('./routes/conta.routes.js') // rotas responsaveis pela conta (credencial de login)
 app.use('/meraki/ecowayer/user/conta', cors(corsOptions), contaRouter)
 
-const tipoCategoriaRouter = require('./routes/tipo_categoria.routes.js') // rotas responsaveis pelo tipo de categoria
-app.use('/meraki/ecowayer/user/tipo_categoria', cors(corsOptions), tipoCategoriaRouter)
-
 const generoRouter = require('./routes/genero.routes.js') // rotas responsaveis pelo genero
 app.use('/meraki/ecowayer/user/genero', cors(corsOptions), generoRouter)
 
 const categoriaRouter = require('./routes/categoria.routes.js') // rotas responsaveis pela categoria
 app.use('/meraki/ecowayer/user/categoria', cors(corsOptions), categoriaRouter)
 
+const tipoCategoriaRouter = require('./routes/tipo_categoria.routes.js') // rotas responsaveis pelo tipo de categoria
+app.use('/meraki/ecowayer/user/tipo_categoria', cors(corsOptions), tipoCategoriaRouter)
+
+const modalidadeRouter = require('./routes/modalidade.routes.js') // modalidades de negociacao
+app.use('/meraki/ecowayer/user/modalidade', cors(corsOptions), modalidadeRouter)
+
+const tipoModalidadeRouter = require('./routes/tipo_modalidade.routes.js') // tipos de modalidade
+app.use('/meraki/ecowayer/user/tipo_modalidade', cors(corsOptions), tipoModalidadeRouter)
+
 const itemRouter = require('./routes/item.routes.js') // rotas responsaveis pelo item
 app.use('/meraki/ecowayer/user/item', cors(corsOptions), itemRouter)
+
+const condicaoItemRouter = require('./routes/condicao_item.routes.js') // condicoes de conservacao do item
+app.use('/meraki/ecowayer/user/condicao_item', cors(corsOptions), condicaoItemRouter)
 
 const pontoColetaRouter = require('./routes/ponto_coleta.routes.js') // rotas responsaveis pelo ponto de coleta
 app.use('/meraki/ecowayer/user/ponto_coleta', cors(corsOptions), pontoColetaRouter)
@@ -106,6 +115,12 @@ app.use('/meraki/ecowayer/user/usuario_missao', cors(corsOptions), usuarioMissao
 const pontosRouter = require('./routes/pontos.routes.js') // registros de pontos do usuario
 app.use('/meraki/ecowayer/user/pontos', cors(corsOptions), pontosRouter)
 
+const regraPontuacaoRouter = require('./routes/regra_pontuacao.routes.js') // regras de pontuacao por categoria
+app.use('/meraki/ecowayer/user/regra_pontuacao', cors(corsOptions), regraPontuacaoRouter)
+
+const regraCondicaoRouter = require('./routes/regra_pontuacao_condicao.routes.js') // multiplicadores por condicao
+app.use('/meraki/ecowayer/user/regra_pontuacao_condicao', cors(corsOptions), regraCondicaoRouter)
+
 const insigniaRouter = require('./routes/insignia.routes.js') // rotas responsaveis pelas insignias
 app.use('/meraki/ecowayer/user/insignia', cors(corsOptions), insigniaRouter)
 
@@ -121,6 +136,9 @@ app.use('/meraki/ecowayer/user/anuncio', cors(corsOptions), anuncioRouter)
 const imagemAnuncioRouter = require('./routes/imagem_anuncio.routes.js') // Rotas responsaveis pelas imagens dos anuncios
 app.use('/meraki/ecowayer/user/imagem_anuncio', cors(corsOptions), imagemAnuncioRouter)
 
+const historicoAnuncioRouter = require('./routes/historico_anuncio.routes.js') // historico de status do anuncio
+app.use('/meraki/ecowayer/user/historico_anuncio', cors(corsOptions), historicoAnuncioRouter)
+
 const statusUsuarioRouter = require('./routes/status_usuario.routes.js') // Rotas responsaveis pelo status do usuario
 app.use('/meraki/ecowayer/user/status_usuario', cors(corsOptions), statusUsuarioRouter)
 
@@ -132,6 +150,12 @@ app.use('/meraki/ecowayer/user/conversa', cors(corsOptions), conversaRouter)
 
 const mensagensRouter = require('./routes/mensagens.routes.js')   // Rotas responsaveis pelas mensagens
 app.use('/meraki/ecowayer/user/mensagens', cors(corsOptions), mensagensRouter)
+
+const denunciasRouter = require('./routes/denuncias.routes.js') // denuncias feitas pelos usuarios
+app.use('/meraki/ecowayer/user/denuncias', cors(corsOptions), denunciasRouter)
+
+const tipoDenunciasRouter = require('./routes/tipo_denuncias.routes.js') // tipos de denuncia
+app.use('/meraki/ecowayer/user/tipo_denuncias', cors(corsOptions), tipoDenunciasRouter)
 
 const notificacaoRouter = require('./routes/notificacao.routes.js')
 app.use('/meraki/ecowayer/user/notificacao', cors(corsOptions), notificacaoRouter)
