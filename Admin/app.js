@@ -45,6 +45,9 @@ app.use('/meraki/ecowayer/admin/endereco', cors(corsOptions), enderecoRouter)
 const pontoColetaRouter = require('./routes/ponto_coleta.routes.js') // Rotas Responseveis pelo PONTO DE COLETA
 app.use('/meraki/ecowayer/admin/ponto-coleta', cors(corsOptions), pontoColetaRouter)
 
+const mapaRouter = require('./routes/mapa.routes.js')
+app.use('/meraki/ecowayer/admin/mapa', cors(corsOptions), mapaRouter)
+
 const materialAceitoRouter = require('./routes/material_aceito.routes.js')   // Rotas responsaveis pela gerencia de MATERIAL ACEITO
 app.use('/meraki/ecowayer/admin/material-aceito', cors(corsOptions), materialAceitoRouter)
 
