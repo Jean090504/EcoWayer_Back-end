@@ -12,7 +12,8 @@ const knexConex = knex(knexConfig.development)
 const colunasSelect = `v.id, v.nome_parceiro, v.beneficio, v.codigo,
                        DATE_FORMAT(v.data_resgate, '%Y-%m-%d %H:%i:%s') AS data_resgate,
                        DATE_FORMAT(v.data_expiracao, '%Y-%m-%d %H:%i:%s') AS data_expiracao,
-                       v.status, v.pontos_utilizados, u.nome AS usuario`
+                       v.status, v.pontos_utilizados, v.id_usuario, v.id_gift_card,
+                       g.nome AS gift_card, u.nome AS usuario`
 
 // INSERT: retorna o insertId em caso de sucesso, ou false
 const insertVoucher = async function (voucher) {
@@ -80,6 +81,7 @@ const selectByIdVoucher = async function (id) {
         let sql = `SELECT ${colunasSelect}
                    FROM tbl_voucher v
                    LEFT JOIN tbl_usuario u ON u.id = v.id_usuario
+                   LEFT JOIN tbl_gift_card g ON g.id = v.id_gift_card
                    WHERE v.id = ?;`
         let result = await knexConex.raw(sql, [id])
 
@@ -96,6 +98,7 @@ const selectAllVoucher = async function () {
         let sql = `SELECT ${colunasSelect}
                    FROM tbl_voucher v
                    LEFT JOIN tbl_usuario u ON u.id = v.id_usuario
+                   LEFT JOIN tbl_gift_card g ON g.id = v.id_gift_card
                    ORDER BY v.id DESC;`
         let result = await knexConex.raw(sql)
 
