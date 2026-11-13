@@ -1,7 +1,7 @@
 /************************************************************************************
  * Objetivo: Arquivo responsável pelo CRUD no Banco de dados MySQL na tabela de relação
  *           entre Endereço e Ponto de Coleta (sem endpoint, filha de ponto de coleta)
- * Autor : [SEU NOME]
+ * Autor : Maxwillian
  * Versão :1.0
 **************************************************************************************/
 
@@ -25,7 +25,7 @@ const insertEnderecoPontoColeta = async function (relacao) {
 const selectEnderecosByIdPontoColeta = async function (idPontoColeta) {
     try {
         let sql = `SELECT e.id, e.cep, e.rua, e.numero, e.complemento, e.bairro, e.cidade, e.estado,
-                          e.sigla, e.id_externo, e.latitude, e.longitude
+                          e.sigla, e.id_externo
                    FROM tbl_endereco AS e
                    INNER JOIN tbl_endereco_ponto_coleta AS ep ON ep.id_endereco = e.id
                    WHERE ep.id_ponto_coleta = ?

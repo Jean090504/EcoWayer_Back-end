@@ -133,7 +133,8 @@ app.use('/meraki/ecowayer/user/conversa', cors(corsOptions), conversaRouter)
 const mensagensRouter = require('./routes/mensagens.routes.js')   // Rotas responsaveis pelas mensagens
 app.use('/meraki/ecowayer/user/mensagens', cors(corsOptions), mensagensRouter)
 
-const notificacaoRouter = require('./routes/notificaco.routes.js')
+const notificacaoRouter = require('./routes/notificacao.routes.js')
+app.use('/meraki/ecowayer/user/notificacao', cors(corsOptions), notificacaoRouter)
 
 const negociacaoRouter = require('./routes/negociacao.routes.js') // rotas responsaveis pela negociacao
 app.use('/meraki/ecowayer/user/negociacao',cors(corsOptions),negociacaoRouter)

@@ -179,7 +179,7 @@ const temValor = function (valor) {
     return !(valor === undefined || valor === null || valor === '')
 }
 
-// Padroniza os dados depois de validados: CEP no formato 00000-000, UF em maiúsculas e opcionais como null.
+// Padroniza os dados depois de validados: CEP no formato 00000-000, UF em maiúsculas e complemento opcional como null.
 const tratarDados = function (endereco) {
     let cep = String(endereco.cep).replace(/\D/g, '')
 
@@ -192,9 +192,7 @@ const tratarDados = function (endereco) {
         cidade: String(endereco.cidade).trim(),
         estado: String(endereco.estado).trim(),
         sigla: String(endereco.sigla).trim().toUpperCase(),
-        id_externo: String(endereco.id_externo).trim(),
-        latitude: temValor(endereco.latitude) ? Number(endereco.latitude) : null,
-        longitude: temValor(endereco.longitude) ? Number(endereco.longitude) : null
+        id_externo: String(endereco.id_externo).trim()
     }
 }
 
@@ -235,14 +233,6 @@ const validarDados = async function (endereco) {
 
     } else if (!temValor(endereco.id_externo) || String(endereco.id_externo).length > 255) {
         message.ERROR_BAD_REQUEST.field = "[ID_EXTERNO] INVÁLIDO"
-        return message.ERROR_BAD_REQUEST
-
-    } else if (temValor(endereco.latitude) && (isNaN(endereco.latitude) || Number(endereco.latitude) < -90 || Number(endereco.latitude) > 90)) {
-        message.ERROR_BAD_REQUEST.field = "[LATITUDE] INVÁLIDA (entre -90 e 90)"
-        return message.ERROR_BAD_REQUEST
-
-    } else if (temValor(endereco.longitude) && (isNaN(endereco.longitude) || Number(endereco.longitude) < -180 || Number(endereco.longitude) > 180)) {
-        message.ERROR_BAD_REQUEST.field = "[LONGITUDE] INVÁLIDA (entre -180 e 180)"
         return message.ERROR_BAD_REQUEST
 
     } else {

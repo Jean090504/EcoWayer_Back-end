@@ -44,6 +44,7 @@ const selectByIdNotificacao = async function (id) {
 
         return Array.isArray(result) ? result[0] : false
     } catch (error) {
+        console.log(error)
         return false
     }
 }
@@ -64,6 +65,19 @@ const selectAllNotificacaoByUsuario = async function (idUsuario, apenasNaoLidas)
 
         return Array.isArray(result) ? result[0] : false
     } catch (error) {
+        console.log(error)
+        return false
+    }
+}
+
+// Confere se o usuário existe (checagem direta na tabela, sem depender de outro controller)
+const selectUsuarioExiste = async function (id) {
+    try {
+        let result = await knexConex.raw(`select id from tbl_usuario where id = ?`, [id])
+
+        return Array.isArray(result) ? result[0] : false
+    } catch (error) {
+        console.log(error)
         return false
     }
 }
@@ -74,6 +88,7 @@ const deleteNotificacao = async function (id) {
 
         return result ? true : false
     } catch (error) {
+        console.log(error)
         return false
     }
 }
@@ -83,5 +98,6 @@ module.exports = {
     updateLidaNotificacao,
     selectByIdNotificacao,
     selectAllNotificacaoByUsuario,
+    selectUsuarioExiste,
     deleteNotificacao
 }

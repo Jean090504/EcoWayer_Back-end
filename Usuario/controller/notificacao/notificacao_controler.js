@@ -211,17 +211,17 @@ const validarDados = async function (notificacao) {
         return message.ERROR_BAD_REQUEST
 
     } else {
-        // o usuário precisa existir: confere chamando o controller de usuário
-        let usuario = await controlerUsuario.buscarUsuario(Number(notificacao.id_usuario))
+        // o usuário precisa existir: checagem direta na tabela
+        let usuario = await notificacaoDAO.selectUsuarioExiste(Number(notificacao.id_usuario))
 
-        if (usuario.status) {
-            return false
-        } else if (usuario.status_code == 404) {
+        if (usuario === false) {
+            return message.ERROR_INTERNAL_SEVER_MODEL // 500
+        } else if (usuario.length == 0) {
             message.ERROR_BAD_REQUEST.field = "[ID_USUARIO] NÃO ENCONTRADO"
-            return message.ERROR_BAD_REQUEST
-        } else {
-            return usuario // 400 ou 500 do próprio controller
+            return message.ERROR_BAD_REQUEST // 400
         }
+
+        return false
     }
 }
 
