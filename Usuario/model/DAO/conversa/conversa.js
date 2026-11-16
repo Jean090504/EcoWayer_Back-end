@@ -5,6 +5,7 @@
 **************************************************************************************/
 
 const knex = require('knex')
+const { agruparConversas } = require('../../../controller/modulo/conversasUnificadas.js')
 const knexConfig = require('../../database_config_knex/knexFile.js')
 const knexConex = knex(knexConfig.development)
 
@@ -12,6 +13,7 @@ const knexConex = knex(knexConfig.development)
 const SQL_SELECT_CONVERSA = `SELECT c.id, c.id_anuncio, a.nome AS anuncio,
         c.id_usuario AS id_interessado, ui.nome AS interessado,
         a.id_usuario AS id_anunciante, ua.nome AS anunciante,
+        (SELECT m.id FROM tbl_mensagens m WHERE m.id_conversa = c.id ORDER BY m.envio DESC, m.id DESC LIMIT 1) AS ultimo_id,
         (SELECT m.texto FROM tbl_mensagens m WHERE m.id_conversa = c.id ORDER BY m.envio DESC, m.id DESC LIMIT 1) AS ultima_mensagem,
         (SELECT DATE_FORMAT(m.envio, '%Y-%m-%d %H:%i:%s') FROM tbl_mensagens m WHERE m.id_conversa = c.id ORDER BY m.envio DESC, m.id DESC LIMIT 1) AS ultimo_envio`
 
@@ -22,11 +24,17 @@ const SQL_FROM_CONVERSA = ` FROM tbl_conversa c
 
 const insertConversa = async function (conversa) {
     try {
-        let sql = `INSERT INTO tbl_conversa (id_anuncio, id_usuario) VALUES (?, ?);`
-        let result = await knexConex.raw(sql, [conversa.id_anuncio, conversa.id_usuario])
-
-        // devolve o id gerado (result[0] é o ResultSetHeader do MySQL)
-        return result ? result[0].insertId : false
+        // Serializa aberturas do mesmo anúncio para reutilizar a conversa em pedidos simultâneos.
+        return await knexConex.transaction(async trx => {
+            const anuncio = await trx('tbl_anuncio').where({ id: conversa.id_anuncio }).forUpdate().first('id')
+            if (!anuncio) return false
+            const existente = await trx('tbl_conversa')
+                .where({ id_anuncio: conversa.id_anuncio, id_usuario: conversa.id_usuario })
+                .orderBy('id').first('id')
+            if (existente) return existente.id
+            const [id] = await trx('tbl_conversa').insert({ id_anuncio: conversa.id_anuncio, id_usuario: conversa.id_usuario })
+            return id
+        })
     } catch (error) {
         console.log(error)
         return false
@@ -68,7 +76,7 @@ const selectAllConversa = async function (idUsuario) {
         }
 
         if (Array.isArray(result)) {
-            return result[0]
+            return agruparConversas(result[0])
         } else {
             return false
         }
@@ -102,7 +110,7 @@ const selectExisteUsuario = async function (idUsuario) {
 // Já existe conversa deste interessado neste anúncio?
 const selectConversaExistente = async function (idAnuncio, idUsuario) {
     try {
-        let result = await knexConex.raw(`SELECT id FROM tbl_conversa WHERE id_anuncio = ? AND id_usuario = ?;`, [idAnuncio, idUsuario])
+        let result = await knexConex.raw(`SELECT id FROM tbl_conversa WHERE id_anuncio = ? AND id_usuario = ? ORDER BY id LIMIT 1;`, [idAnuncio, idUsuario])
 
         return Array.isArray(result) ? result[0] : false
     } catch (error) {

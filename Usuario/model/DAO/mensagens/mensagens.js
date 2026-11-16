@@ -10,9 +10,12 @@ const knexConex = knex(knexConfig.development)
 
 const SQL_SELECT_MENSAGEM = `SELECT m.id, m.texto,
         DATE_FORMAT(m.envio, '%Y-%m-%d %H:%i:%s') AS envio,
-        m.lida, m.id_conversa, m.id_remetente, u.nome AS remetente
+        m.lida, m.id_conversa, m.id_remetente, u.nome AS remetente,
+        c.id_anuncio, a.nome AS anuncio, c.id_usuario AS id_interessado, a.id_usuario AS id_anunciante
     FROM tbl_mensagens m
-    INNER JOIN tbl_usuario u ON u.id = m.id_remetente`
+    INNER JOIN tbl_usuario u ON u.id = m.id_remetente
+    INNER JOIN tbl_conversa c ON c.id = m.id_conversa
+    INNER JOIN tbl_anuncio a ON a.id = c.id_anuncio`
 
 // Grava a mensagem (envio = agora, lida = 0) e cria a notificação "X enviou uma mensagem no chat"
 // para a outra pessoa da conversa. Tudo na mesma transação.
@@ -70,7 +73,12 @@ const selectByIdMensagem = async function (id) {
 // Mensagens de uma conversa, da mais antiga para a mais nova (ordem de leitura do chat).
 const selectAllMensagemByConversa = async function (idConversa) {
     try {
-        let sql = `${SQL_SELECT_MENSAGEM} WHERE m.id_conversa = ? ORDER BY m.envio ASC, m.id ASC;`
+        let sql = `${SQL_SELECT_MENSAGEM}
+            INNER JOIN tbl_conversa referencia ON referencia.id = ?
+            INNER JOIN tbl_anuncio anuncio_referencia ON anuncio_referencia.id = referencia.id_anuncio
+            WHERE LEAST(c.id_usuario, a.id_usuario) = LEAST(referencia.id_usuario, anuncio_referencia.id_usuario)
+              AND GREATEST(c.id_usuario, a.id_usuario) = GREATEST(referencia.id_usuario, anuncio_referencia.id_usuario)
+            ORDER BY m.envio ASC, m.id ASC;`
         let result = await knexConex.raw(sql, [idConversa])
 
         return Array.isArray(result) ? result[0] : false

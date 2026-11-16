@@ -7,6 +7,7 @@
 
 const bcrypt = require('bcrypt') // se o projeto usa bcryptjs, troque só o nome aqui (a API é a mesma)
 const crypto = require('crypto')
+const { validarSenha } = require('../modulo/validacaoSenha.js')
 const configMessages = require('../modulo/configMessages.js')
 const usuarioDAO = require('../../model/DAO/usuario/usuario.js')
 
@@ -477,8 +478,8 @@ const validarDados = async function (usuario, novoCadastro) {
         message.ERROR_BAD_REQUEST.field = "[TELEFONE] INVÁLIDO (DDD + número, 10 ou 11 dígitos)"
         return message.ERROR_BAD_REQUEST
 
-    } else if (novoCadastro && (!temValor(usuario.senha) || typeof usuario.senha != 'string' || usuario.senha.length < 8 || usuario.senha.length > 50 || !/[A-Z]/.test(usuario.senha) || !/[a-z]/.test(usuario.senha) || !/\d/.test(usuario.senha))) {
-        message.ERROR_BAD_REQUEST.field = "[SENHA] INVÁLIDA (8 a 50 caracteres, com maiúscula, minúscula e número)"
+    } else if (novoCadastro && validarSenha(usuario.senha)) {
+        message.ERROR_BAD_REQUEST.field = validarSenha(usuario.senha)
         return message.ERROR_BAD_REQUEST
 
     } else if (novoCadastro && (!temValor(usuario.id_endereco) || isNaN(usuario.id_endereco) || !Number.isInteger(Number(usuario.id_endereco)) || Number(usuario.id_endereco) < 1)) {

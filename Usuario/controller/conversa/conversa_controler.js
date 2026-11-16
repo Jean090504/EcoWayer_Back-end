@@ -56,10 +56,8 @@ const inserirNovaConversa = async function (conversa, contentType) {
                 if (existente === false) {
                     return message.ERROR_INTERNAL_SEVER_MODEL // 500
                 } else if (existente.length > 0) {
-                    // usa o 409 se o ERROR_CONFLICT existir no configMessages; senão, cai no 400
-                    let erro = message.ERROR_CONFLICT ? message.ERROR_CONFLICT : message.ERROR_BAD_REQUEST
-                    erro.field = '[CONVERSA] JÁ EXISTE PARA ESTE ANÚNCIO (id ' + existente[0].id + ')'
-                    return erro
+                    // Reabrir o mesmo anúncio reutiliza o histórico em vez de criar outro chat.
+                    return await buscarConversa(existente[0].id, dados.id_usuario)
                 }
 
                 let result = await conversaDAO.insertConversa(dados)

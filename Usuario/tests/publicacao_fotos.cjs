@@ -62,6 +62,46 @@ const { criarRouter, uploadDir } = require(path.join(root, 'routes/publicacao_an
         arquivos.push(path.join(uploadDir, path.basename(b.response.anuncio.imagem)))
         assert.equal(b.response.anuncio.peso_kg, 1250)
         console.log('PASS: toneladas convertidas corretamente para kg')
+        // Edição usa apenas o anúncio criado nesta transação de teste.
+        await trx('tbl_anuncio').where({ id: anuncio.id }).update({ status: 'pausado' })
+        const antes = await trx('tbl_anuncio').where({ id: anuncio.id }).first()
+        function edicao(mantidas, nova = false) {
+            const form = formulario()
+            form.delete('fotos')
+            form.set('nome', 'Título alterado no teste')
+            form.set('quantidade', '3')
+            form.set('fotos_mantidas', JSON.stringify(mantidas))
+            if (nova) form.append('fotos', new Blob([png], { type: 'image/png' }), 'nova.png')
+            return form
+        }
+        const editada = await fetch(`${endpoint}/${anuncio.id}/publicar`, { method: 'PUT', headers, body: edicao([anuncio.imagem], true) })
+        const editBody = await editada.json()
+        assert.equal(editada.status, 200, JSON.stringify(editBody))
+        const editAnuncio = editBody.response.anuncio
+        const novaUrl = editAnuncio.imagens[1]
+        arquivos.push(path.join(uploadDir, path.basename(novaUrl)))
+        assert.equal(editAnuncio.imagens.length, 2)
+        assert.equal(editAnuncio.status, 'pausado')
+        const depois = await trx('tbl_anuncio').where({ id: anuncio.id }).first()
+        assert.equal(depois.nome, 'Título alterado no teste')
+        assert.equal(Number(depois.quantidade), 3)
+        assert.equal(String(depois.data_publicacao), String(antes.data_publicacao))
+        console.log('PASS: edição salva campos e nova foto, preservando status, data e foto anterior')
+        const removida = await fetch(`${endpoint}/${anuncio.id}/publicar`, { method: 'PUT', headers, body: edicao([novaUrl]) })
+        assert.equal(removida.status, 200)
+        assert.deepEqual((await removida.json()).response.anuncio.imagens, [novaUrl])
+        assert.equal((await trx('tbl_imagem_anuncio').where({ id_anuncio: anuncio.id })).length, 1)
+        console.log('PASS: edição permite remover foto e salvar sem reenviar as existentes')
+        const outroToken = jwt.sign({ id: usuario.id + 100000, tipo: 'usuario' }, process.env.JWT_SECRET, { expiresIn: '5m' })
+        const negada = await fetch(`${endpoint}/${anuncio.id}/publicar`, { method: 'PUT', headers: { Cookie: `ecowayer_token=${outroToken}` }, body: edicao([novaUrl]) })
+        assert.equal(negada.status, 404)
+        console.log('PASS: edição de anúncio alheio bloqueada')
+        for (const mantidas of [[], ['/uploads/anuncios/foto-de-outro-anuncio.png']]) {
+            const r = await fetch(`${endpoint}/${anuncio.id}/publicar`, { method: 'PUT', headers, body: edicao(mantidas) })
+            assert.equal(r.status, 400)
+        }
+        console.log('PASS: rejeita anúncio sem fotos e fotos não vinculadas ao anúncio')
+
     } finally {
         if (server) await new Promise(resolve => server.close(resolve))
         if (trx) await trx.rollback()

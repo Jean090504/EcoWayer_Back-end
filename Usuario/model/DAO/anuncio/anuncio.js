@@ -114,6 +114,17 @@ const selectAnuncioById = async function (id) {
                 'SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = ? ORDER BY ia.id', [id]
             )
             result[0][0].imagens = imagens.map(imagem => imagem.url)
+            // Somente dados públicos do proprietário do anúncio; não usa a rota privada de perfil.
+            const [vendedores] = await knexConex.raw(`
+                SELECT u.id, u.nome, i.url AS foto,
+                    DATE_FORMAT(u.data_cadastro, '%Y-%m-%d') AS membroDesde,
+                    (SELECT COUNT(*) FROM tbl_anuncio publicados
+                     WHERE publicados.id_usuario = u.id AND publicados.status = 'ativo') AS anunciosAtivos
+                FROM tbl_usuario u
+                LEFT JOIN tbl_imagem i ON i.id = u.id_imagem
+                WHERE u.id = ? LIMIT 1`, [result[0][0].id_usuario])
+            result[0][0].vendedor = vendedores[0] || null
+
         }
         return result[0]
     } catch (error) {
