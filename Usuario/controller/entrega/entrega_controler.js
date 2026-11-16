@@ -9,7 +9,7 @@
 const configMessages = require('../modulo/configMessages.js')
 const entregaDAO = require('../../model/DAO/entrega/entrega.js')
 const imagemDAO = require('../../model/DAO/imagem/imagem.js')
-const controllerImagemEntrega = require('./imagem_entrega_controler.js')
+const controllerImagemEntrega = require('../imagem_entrega_controler.js/imagem_entrega_controler.js')
 
 const STATUS_VALIDOS = ['pendente', 'concluida', 'cancelada']
 const REGEX_DATA = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/

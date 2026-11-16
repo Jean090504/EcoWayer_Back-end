@@ -121,6 +121,9 @@ app.use('/meraki/ecowayer/user/usuario_missao', cors(corsOptions), usuarioMissao
 const pontosRouter = require('./routes/pontos.routes.js') // registros de pontos do usuario
 app.use('/meraki/ecowayer/user/pontos', cors(corsOptions), pontosRouter)
 
+const configuracaoPontosRouter = require('./routes/configuracao_pontos.routes.js') // taxa global de conversao de pontos
+app.use('/meraki/ecowayer/user/configuracao_pontos', cors(corsOptions), configuracaoPontosRouter)
+
 const regraPontuacaoRouter = require('./routes/regra_pontuacao.routes.js') // regras de pontuacao por categoria
 app.use('/meraki/ecowayer/user/regra_pontuacao', cors(corsOptions), regraPontuacaoRouter)
 
@@ -172,5 +175,5 @@ app.use('/meraki/ecowayer/user/negociacao',cors(corsOptions),negociacaoRouter)
 
 const PORT = process.env.PORT || 8070
 app.listen(PORT, function () {
-    console.log(`API DA LOCADORA FUNCIONANDO EM http://localhost:${PORT} E AGUARDANDO NOVAS REQUISIÇÕES...`);
+    console.log(`API DA APLICAÇÃO FUNCIONANDO EM http://localhost:${PORT} E AGUARDANDO NOVAS REQUISIÇÕES...`);
 })

@@ -6,8 +6,7 @@
  **********************************************************************************************/
 
 const configMessages = require('../modulo/configMessages.js')
-const imagemEntregaDAO = require('../../model/model/DAO/imagem_entrega/imagem_entrega.js')
-
+const imagemEntregaDAO = require('../../model/DAO/imagem_entrega/imagem_entrega.js')
 const idValido = (id) =>
     /^\d+$/.test(String(id)) && Number.isSafeInteger(Number(id)) && Number(id) > 0
 

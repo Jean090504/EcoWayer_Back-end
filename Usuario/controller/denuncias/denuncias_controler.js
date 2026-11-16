@@ -1,6 +1,7 @@
 /***************************************************************
  *  Objetivo: Arquivo responsavel pela validação, tratamento e manipulação de dados
  *            da tabela tbl_denuncias (denúncias feitas pelos usuários)
+ *            e de seus vínculos com mensagens e imagens
  *  Autor: Gustavo
  *  Versão: 1.0
  ***************************************************************/
@@ -13,6 +14,14 @@ const idValido = (id) =>
 
 const vazio = (valor) =>
     valor === undefined || valor === null || (typeof valor === 'string' && valor.trim() == '')
+
+// Lista de ids opcional: se vier, precisa ser array de inteiros > 0 (sem repetição)
+const listaIdsValida = (lista) =>
+    lista === undefined || lista === null ||
+    (Array.isArray(lista) && lista.every(item => idValido(item)))
+
+const normalizarLista = (lista) =>
+    (lista === undefined || lista === null) ? [] : [...new Set(lista.map(item => Number(item)))]
 
 // Devolve false se válido, ou a resposta de erro pronta (400 ou 500)
 const validarVinculos = async function (denuncia) {
@@ -38,6 +47,32 @@ const validarVinculos = async function (denuncia) {
     if (usuario.length == 0) {
         message.ERROR_BAD_REQUEST.field = '[ID_DENUNCIANTE] NÃO EXISTE'
         return message.ERROR_BAD_REQUEST
+    }
+
+    if (!listaIdsValida(denuncia.mensagens)) {
+        message.ERROR_BAD_REQUEST.field = '[MENSAGENS] INVÁLIDO (use uma lista de ids, ex.: [1, 2])'
+        return message.ERROR_BAD_REQUEST
+    }
+    for (let idMensagem of normalizarLista(denuncia.mensagens)) {
+        let existe = await denunciasDAO.selectExiste('tbl_mensagens', idMensagem)
+        if (existe === false) return message.ERROR_INTERNAL_SEVER_MODEL
+        if (existe.length == 0) {
+            message.ERROR_BAD_REQUEST.field = `[MENSAGENS] O ID ${idMensagem} NÃO EXISTE`
+            return message.ERROR_BAD_REQUEST
+        }
+    }
+
+    if (!listaIdsValida(denuncia.imagens)) {
+        message.ERROR_BAD_REQUEST.field = '[IMAGENS] INVÁLIDO (use uma lista de ids, ex.: [1, 2])'
+        return message.ERROR_BAD_REQUEST
+    }
+    for (let idImagem of normalizarLista(denuncia.imagens)) {
+        let existe = await denunciasDAO.selectExiste('tbl_imagem', idImagem)
+        if (existe === false) return message.ERROR_INTERNAL_SEVER_MODEL
+        if (existe.length == 0) {
+            message.ERROR_BAD_REQUEST.field = `[IMAGENS] O ID ${idImagem} NÃO EXISTE`
+            return message.ERROR_BAD_REQUEST
+        }
     }
 
     return false
@@ -68,8 +103,28 @@ const normalizarDados = function (denuncia) {
     return {
         descricao: denuncia.descricao.trim(),
         id_tipo_denuncias: Number(denuncia.id_tipo_denuncias),
-        id_denunciante: Number(denuncia.id_denunciante)
+        id_denunciante: Number(denuncia.id_denunciante),
+        mensagens: normalizarLista(denuncia.mensagens),
+        imagens: normalizarLista(denuncia.imagens)
     }
+}
+
+// Grava as relações com mensagens e imagens; devolve false no primeiro vínculo que falhar
+const inserirVinculosDenuncia = async function (idDenuncia, dados) {
+    for (let idMensagem of dados.mensagens) {
+        if (!(await denunciasDAO.insertDenunciaMensagem(idDenuncia, idMensagem))) return false
+    }
+    for (let idImagem of dados.imagens) {
+        if (!(await denunciasDAO.insertImagemDenuncia(idImagem, idDenuncia))) return false
+    }
+    return true
+}
+
+// Apaga as relações antes da denúncia (FK)
+const excluirVinculosDenuncia = async function (idDenuncia) {
+    let mensagens = await denunciasDAO.deleteDenunciaMensagensByIdDenuncia(idDenuncia)
+    let imagens = await denunciasDAO.deleteImagemDenunciasByIdDenuncia(idDenuncia)
+    return mensagens && imagens
 }
 
 const inserirNovaDenuncia = async function (denuncia, contentType) {
@@ -90,11 +145,12 @@ const inserirNovaDenuncia = async function (denuncia, contentType) {
         let id = await denunciasDAO.insertDenuncia(dados)
 
         if (id) {
+            let vinculosOk = await inserirVinculosDenuncia(id, dados)
             dados.id = id
 
-            message.DEFAULT_MESSAGE.status = message.SUCCESS_CREATED_ITEM.status
-            message.DEFAULT_MESSAGE.status_code = message.SUCCESS_CREATED_ITEM.status_code
-            message.DEFAULT_MESSAGE.message = message.SUCCESS_CREATED_ITEM.message
+            message.DEFAULT_MESSAGE.status = vinculosOk ? message.SUCCESS_CREATED_ITEM.status : message.SUCCESS_CREATED_WARNING.status
+            message.DEFAULT_MESSAGE.status_code = vinculosOk ? message.SUCCESS_CREATED_ITEM.status_code : message.SUCCESS_CREATED_WARNING.status_code
+            message.DEFAULT_MESSAGE.message = vinculosOk ? message.SUCCESS_CREATED_ITEM.message : message.SUCCESS_CREATED_WARNING.message
             message.DEFAULT_MESSAGE.response = { denuncia: dados }
 
             return message.DEFAULT_MESSAGE // 201
@@ -140,9 +196,13 @@ const atualizarDenuncia = async function (id, denuncia, contentType) {
         let result = await denunciasDAO.updateDenuncia(dados)
 
         if (result) {
-            message.DEFAULT_MESSAGE.status = message.SUCCESS_UPDETED_ITEM.status
-            message.DEFAULT_MESSAGE.status_code = message.SUCCESS_UPDETED_ITEM.status_code
-            message.DEFAULT_MESSAGE.message = message.SUCCESS_UPDETED_ITEM.message
+            // os vínculos são regravados: apaga os antigos e insere os novos
+            await excluirVinculosDenuncia(dados.id)
+            let vinculosOk = await inserirVinculosDenuncia(dados.id, dados)
+
+            message.DEFAULT_MESSAGE.status = vinculosOk ? message.SUCCESS_UPDETED_ITEM.status : message.SUCCESS_CREATED_WARNING.status
+            message.DEFAULT_MESSAGE.status_code = vinculosOk ? message.SUCCESS_UPDETED_ITEM.status_code : message.SUCCESS_CREATED_WARNING.status_code
+            message.DEFAULT_MESSAGE.message = vinculosOk ? message.SUCCESS_UPDETED_ITEM.message : message.SUCCESS_CREATED_WARNING.message
             message.DEFAULT_MESSAGE.response = { denuncia: dados }
 
             return message.DEFAULT_MESSAGE // 201
@@ -179,6 +239,7 @@ const listarDenuncias = async function () {
     }
 }
 
+// Busca a denúncia com as mensagens e imagens vinculadas
 const buscarDenuncia = async function (id) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
@@ -193,9 +254,13 @@ const buscarDenuncia = async function (id) {
         if (result === false) {
             return message.ERROR_INTERNAL_SEVER_MODEL // 500
         } else if (result.length > 0) {
+            let denuncia = result[0]
+            denuncia.mensagens = await denunciasDAO.selectMensagensByIdDenuncia(Number(id)) || []
+            denuncia.imagens = await denunciasDAO.selectImagensByIdDenuncia(Number(id)) || []
+
             message.DEFAULT_MESSAGE.status = message.SUCCESS_RESPONSE.status
             message.DEFAULT_MESSAGE.status_code = message.SUCCESS_RESPONSE.status_code
-            message.DEFAULT_MESSAGE.response.denuncia = result[0]
+            message.DEFAULT_MESSAGE.response.denuncia = denuncia
 
             return message.DEFAULT_MESSAGE // 200
         } else {
@@ -207,7 +272,7 @@ const buscarDenuncia = async function (id) {
     }
 }
 
-// Exclusão só se a denúncia não estiver vinculada a moderação (mensagem, anúncio, imagem ou alerta)
+// Exclusão só se a denúncia não estiver vinculada a moderação (alerta ou denúncia de anúncio)
 const excluirDenuncia = async function (id) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
@@ -234,6 +299,9 @@ const excluirDenuncia = async function (id) {
             return message.ERROR_BAD_REQUEST // 400
         }
 
+        // apaga primeiro as relações com mensagens e imagens (FK), depois a denúncia
+        await excluirVinculosDenuncia(Number(id))
+
         let result = await denunciasDAO.deleteDenuncia(Number(id))
 
         if (result) {
@@ -258,4 +326,4 @@ module.exports = {
     listarDenuncias,
     buscarDenuncia,
     excluirDenuncia
-}   
+}
