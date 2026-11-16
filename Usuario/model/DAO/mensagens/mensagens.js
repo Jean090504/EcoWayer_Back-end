@@ -130,7 +130,28 @@ const deleteMensagem = async function (id) {
     }
 }
 
+
+const marcarConversaLida = async function (idConversa, idUsuario, ateId) {
+    try {
+        const [resultado] = await knexConex.raw(`
+            UPDATE tbl_mensagens m
+            INNER JOIN tbl_conversa c ON c.id = m.id_conversa
+            INNER JOIN tbl_anuncio a ON a.id = c.id_anuncio
+            INNER JOIN tbl_conversa referencia ON referencia.id = ?
+            INNER JOIN tbl_anuncio ar ON ar.id = referencia.id_anuncio
+            SET m.lida = 1
+            WHERE LEAST(c.id_usuario, a.id_usuario) = LEAST(referencia.id_usuario, ar.id_usuario)
+              AND GREATEST(c.id_usuario, a.id_usuario) = GREATEST(referencia.id_usuario, ar.id_usuario)
+              AND m.id_remetente <> ? AND m.id <= ? AND m.lida = 0`, [idConversa, idUsuario, ateId])
+        return resultado.affectedRows
+    } catch (error) {
+        console.error(error)
+        return false
+    }
+}
+
 module.exports = {
+    marcarConversaLida,
     insertMensagem,
     updateLidaMensagem,
     selectByIdMensagem,

@@ -237,7 +237,21 @@ const validarDados = async function (mensagem) {
     }
 }
 
+
+const marcarConversaLida = async function (idConversa, ateId, idUsuario) {
+    if (!ehIdValido(idConversa) || !ehIdValido(ateId) || !Number.isSafeInteger(Number(ateId))) {
+        return { status_code: 400, message: 'Conversa ou limite de leitura inválido.' }
+    }
+    if (!await usuarioParticipaConversa(idConversa, idUsuario)) {
+        return { status_code: 403, message: 'Você não participa desta conversa.' }
+    }
+    const quantidade = await mensagensDAO.marcarConversaLida(Number(idConversa), Number(idUsuario), Number(ateId))
+    if (quantidade === false) return { status_code: 500, message: 'Não foi possível confirmar a leitura.' }
+    return { status_code: 200, response: { lidas: quantidade } }
+}
+
 module.exports = {
+    marcarConversaLida,
     inserirNovaMensagem,
     atualizarMensagem,
     listarMensagem,

@@ -41,6 +41,11 @@ router.get('/:id', async function (request, response) {
 })
 
 // Marcar mensagem como lida: PUT com { "lida": true }
+router.put('/lidas', bodyParserJSON, async function (request, response) {
+    const result = await controlerMensagens.marcarConversaLida(request.body?.id_conversa, request.body?.ate_id, request.usuario.id)
+    response.status(result.status_code).json(result)
+})
+
 router.put('/:id', bodyParserJSON, async function (request, response) {
     let contentType = request.headers['content-type']
     let id = request.params.id

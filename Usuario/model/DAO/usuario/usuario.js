@@ -59,10 +59,12 @@ const insertUsuario = async function (usuario) {
                 [usuario.senha, resultEmail[0].insertId]
             )
 
-            await trx.raw(
-                `INSERT INTO tbl_endereco_usuario (id_endereco, id_usuario) VALUES (?, ?);`,
-                [usuario.id_endereco, id]
-            )
+            if (usuario.id_endereco != null) {
+                await trx.raw(
+                    `INSERT INTO tbl_endereco_usuario (id_endereco, id_usuario) VALUES (?, ?);`,
+                    [usuario.id_endereco, id]
+                )
+            }
 
             return id
         })

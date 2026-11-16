@@ -383,7 +383,7 @@ const tratarDados = function (usuario, novoCadastro) {
         dados.cpf = cpf.slice(0, 3) + '.' + cpf.slice(3, 6) + '.' + cpf.slice(6, 9) + '-' + cpf.slice(9)
         dados.email = String(usuario.email).trim().toLowerCase()
         dados.telefone = String(usuario.telefone).replace(/\D/g, '')
-        dados.id_endereco = Number(usuario.id_endereco)
+        dados.id_endereco = temValor(usuario.id_endereco) ? Number(usuario.id_endereco) : null
     }
 
     return dados
@@ -399,7 +399,7 @@ const validarReferencias = async function (dados, novoCadastro) {
         checagens.push(['tbl_imagem', dados.id_imagem, 'ID_IMAGEM'])
     }
 
-    if (novoCadastro) {
+    if (novoCadastro && dados.id_endereco != null) {
         checagens.push(['tbl_endereco', dados.id_endereco, 'ID_ENDERECO'])
     }
 
@@ -441,7 +441,7 @@ const buscarPadroes = async function (dados) {
     }
 }
 
-// novoCadastro = true (POST): exige também cpf, email, telefone, senha e id_endereco.
+// novoCadastro = true (POST): exige também cpf, email, telefone e senha. Endereço é opcional; quando informado, é validado.
 // novoCadastro = false (PUT): só os campos de perfil (nome, data_nascimento, id_genero, id_imagem).
 const validarDados = async function (usuario, novoCadastro) {
     let message = JSON.parse(JSON.stringify(configMessages))
@@ -482,7 +482,7 @@ const validarDados = async function (usuario, novoCadastro) {
         message.ERROR_BAD_REQUEST.field = validarSenha(usuario.senha)
         return message.ERROR_BAD_REQUEST
 
-    } else if (novoCadastro && (!temValor(usuario.id_endereco) || isNaN(usuario.id_endereco) || !Number.isInteger(Number(usuario.id_endereco)) || Number(usuario.id_endereco) < 1)) {
+    } else if (novoCadastro && temValor(usuario.id_endereco) && (isNaN(usuario.id_endereco) || !Number.isInteger(Number(usuario.id_endereco)) || Number(usuario.id_endereco) < 1)) {
         message.ERROR_BAD_REQUEST.field = "[ID_ENDERECO] INVÁLIDO"
         return message.ERROR_BAD_REQUEST
 
