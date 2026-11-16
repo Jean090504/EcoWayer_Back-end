@@ -303,6 +303,13 @@ const validarDados = async function (negociacao, ehPost) {
             return message.ERROR_BAD_REQUEST // 400
         }
 
+        const participante = Number(conversa[0].id_interessado) === Number(negociacao.id_usuario) ||
+            Number(conversa[0].id_anunciante) === Number(negociacao.id_usuario)
+        if (!participante) {
+            message.ERROR_BAD_REQUEST.field = '[ID_USUARIO] NÃO PARTICIPA DESTA CONVERSA'
+            return message.ERROR_BAD_REQUEST
+        }
+
         let usuario = await usuarioDAO.selectByIdUsuario(Number(negociacao.id_usuario))
 
         if (usuario === false) {

@@ -15,7 +15,7 @@ const controlerNegociacao = require('../controller/negociacao/negociacao_control
 
 // Inserir nova proposta
 router.post('/', bodyParserJSON, async function (request, response) {
-    let dados = request.body
+    let dados = { ...request.body, id_usuario: request.usuario.id }
     let contentType = request.headers['content-type']
 
     let result = await controlerNegociacao.inserirNovoNegociacao(dados, contentType)
@@ -54,7 +54,7 @@ router.get('/:id', async function (request, response) {
 router.put('/:id', bodyParserJSON, async function (request, response) {
     let contentType = request.headers['content-type']
     let id = request.params.id
-    let negociacao = request.body
+    let negociacao = { ...request.body, id_usuario: request.usuario.id }
 
     let result = await controlerNegociacao.atualizarNegociacao(negociacao, id, contentType)
 

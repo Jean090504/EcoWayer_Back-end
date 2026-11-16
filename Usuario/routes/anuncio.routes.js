@@ -14,7 +14,7 @@ const router = express.Router()
 // POST /  -> cria um anúncio
 router.post('/', bodyParserJSON, async function (request, response) {
     let contentType = request.headers['content-type']
-    let result = await controllerAnuncio.inserirNovoAnuncio(request.body, contentType)
+    let result = await controllerAnuncio.inserirNovoAnuncio({ ...request.body, id_usuario: request.usuario.id }, contentType)
 
     response.status(result.status_code)
     response.json(result)
@@ -39,7 +39,7 @@ router.get('/:id', async function (request, response) {
 // PUT /:id  -> atualiza um anúncio
 router.put('/:id', bodyParserJSON, async function (request, response) {
     let contentType = request.headers['content-type']
-    let result = await controllerAnuncio.atualizarAnuncio(request.params.id, request.body, contentType)
+    let result = await controllerAnuncio.atualizarAnuncio(request.params.id, { ...request.body, id_usuario: request.usuario.id }, contentType, request.usuario.id)
 
     response.status(result.status_code)
     response.json(result)
@@ -47,7 +47,7 @@ router.put('/:id', bodyParserJSON, async function (request, response) {
 
 // DELETE /:id  -> exclui um anúncio
 router.delete('/:id', async function (request, response) {
-    let result = await controllerAnuncio.excluirAnuncio(request.params.id)
+    let result = await controllerAnuncio.excluirAnuncio(request.params.id, request.usuario.id)
 
     response.status(result.status_code)
     response.json(result)

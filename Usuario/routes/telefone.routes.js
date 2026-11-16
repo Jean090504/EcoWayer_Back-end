@@ -8,19 +8,15 @@ const express = require('express')
 const bodyParserJSON = express.json()
 
 const controllerTelefone = require('../controller/telefone/telefone_controler.js')
+const { exigirProprietario, listarSomenteProprietario } = require('../middleware/proprietario.js')
 
 const router = express.Router()
 
 // GET /  -> lista os telefones
-router.get('/', async function (request, response) {
-    let result = await controllerTelefone.listarTelefones()
-
-    response.status(result.status_code)
-    response.json(result)
-})
+router.get('/', listarSomenteProprietario(controllerTelefone.listarTelefones, 'telefone'))
 
 // GET /:id  -> busca um telefone pelo id
-router.get('/:id', async function (request, response) {
+router.get('/:id', exigirProprietario(controllerTelefone.buscarTelefone, 'telefone'), async function (request, response) {
     let result = await controllerTelefone.buscarTelefone(request.params.id)
 
     response.status(result.status_code)
@@ -28,7 +24,7 @@ router.get('/:id', async function (request, response) {
 })
 
 // PUT /:id  -> atualiza um telefone (id na URL, body no segundo argumento)
-router.put('/:id', bodyParserJSON, async function (request, response) {
+router.put('/:id', exigirProprietario(controllerTelefone.buscarTelefone, 'telefone'), bodyParserJSON, async function (request, response) {
     let contentType = request.headers['content-type']
     let result = await controllerTelefone.atualizarTelefone(request.params.id, request.body, contentType)
 
@@ -37,7 +33,7 @@ router.put('/:id', bodyParserJSON, async function (request, response) {
 })
 
 // DELETE /:id  -> exclui um telefone
-router.delete('/:id', async function (request, response) {
+router.delete('/:id', exigirProprietario(controllerTelefone.buscarTelefone, 'telefone'), async function (request, response) {
     let result = await controllerTelefone.excluirTelefone(request.params.id)
 
     response.status(result.status_code)

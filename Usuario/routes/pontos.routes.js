@@ -8,6 +8,7 @@ const express = require('express')
 const bodyParserJSON = express.json()
 
 const controllerPontos = require('../controller/pontos/pontos_controler.js')
+const { exigirProprietario, listarSomenteProprietario } = require('../middleware/proprietario.js')
 
 const router = express.Router()
 
@@ -21,15 +22,10 @@ router.post('/', bodyParserJSON, async function (request, response) {
 })
 
 // GET /  -> lista os registros de pontos
-router.get('/', async function (request, response) {
-    let result = await controllerPontos.listarPontos()
-
-    response.status(result.status_code)
-    response.json(result)
-})
+router.get('/', listarSomenteProprietario(controllerPontos.listarPontos, 'pontos'))
 
 // GET /:id  -> busca um registro de pontos pelo id
-router.get('/:id', async function (request, response) {
+router.get('/:id', exigirProprietario(controllerPontos.buscarPontos, 'pontos'), async function (request, response) {
     let result = await controllerPontos.buscarPontos(request.params.id)
 
     response.status(result.status_code)
@@ -37,7 +33,7 @@ router.get('/:id', async function (request, response) {
 })
 
 // PUT /:id  -> atualiza um registro (id na URL, body no segundo argumento)
-router.put('/:id', bodyParserJSON, async function (request, response) {
+router.put('/:id', exigirProprietario(controllerPontos.buscarPontos, 'pontos'), bodyParserJSON, async function (request, response) {
     let contentType = request.headers['content-type']
     let result = await controllerPontos.atualizarPontos(request.params.id, request.body, contentType)
 
@@ -46,7 +42,7 @@ router.put('/:id', bodyParserJSON, async function (request, response) {
 })
 
 // DELETE /:id  -> bloqueado de propósito: pontos são histórico contábil
-router.delete('/:id', async function (request, response) {
+router.delete('/:id', exigirProprietario(controllerPontos.buscarPontos, 'pontos'), async function (request, response) {
     let message = JSON.parse(JSON.stringify(require('../controller/modulo/configMessages.js')))
 
     message.DEFAULT_MESSAGE.status = false

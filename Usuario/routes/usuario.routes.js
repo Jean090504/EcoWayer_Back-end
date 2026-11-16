@@ -14,7 +14,22 @@ const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHe
 
 router.post('/login', loginLimiter, bodyParserJSON, async function (request, response) {
     let result = await controlerUsuario.loginUsuario(request.body?.email, request.body?.senha)
+    if (result.status_code === 200 && result.response?.token) {
+        response.cookie('ecowayer_token', result.response.token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 1000,
+            path: '/'
+        })
+        delete result.response.token
+    }
     response.status(result.status_code).json(result)
+})
+
+router.post('/logout', function (_request, response) {
+    response.clearCookie('ecowayer_token', { httpOnly: true, sameSite: 'lax', path: '/' })
+    response.status(204).end()
 })
 
 // Cadastrar novo usuário (cria também e-mail, telefone, conta e vínculo com o endereço)
@@ -30,7 +45,7 @@ router.post('/', bodyParserJSON, async function (request, response) {
 
 // Listar todos os usuários (ANTES do /:id)
 router.get('/', async function (request, response) {
-    let result = await controlerUsuario.listarUsuario()
+    let result = await controlerUsuario.buscarUsuario(request.usuario.id)
 
     response.status(result.status_code)
     response.json(result)
@@ -38,6 +53,9 @@ router.get('/', async function (request, response) {
 
 // Buscar usuário por ID (inclui os endereços)
 router.get('/:id', async function (request, response) {
+    if (Number(request.params.id) !== Number(request.usuario.id)) {
+        return response.status(403).json({ status: false, status_code: 403, message: 'Você só pode acessar o próprio perfil.' })
+    }
     let id = request.params.id
     let result = await controlerUsuario.buscarUsuario(id)
 
@@ -47,6 +65,9 @@ router.get('/:id', async function (request, response) {
 
 // Atualizar perfil do usuário por ID
 router.put('/:id', bodyParserJSON, async function (request, response) {
+    if (Number(request.params.id) !== Number(request.usuario.id)) {
+        return response.status(403).json({ status: false, status_code: 403, message: 'Você só pode alterar o próprio perfil.' })
+    }
     let contentType = request.headers['content-type']
     let id = request.params.id
     let usuario = request.body
@@ -59,6 +80,9 @@ router.put('/:id', bodyParserJSON, async function (request, response) {
 
 // Desativar (excluir) usuário por ID
 router.delete('/:id', async function (request, response) {
+    if (Number(request.params.id) !== Number(request.usuario.id)) {
+        return response.status(403).json({ status: false, status_code: 403, message: 'Você só pode excluir o próprio perfil.' })
+    }
     let id = request.params.id
     let result = await controlerUsuario.excluirUsuario(id)
 

@@ -9,10 +9,11 @@ const bodyParser = require('body-parser')
 const bodyParserJSON = bodyParser.json()
 
 const controlerNotificacao = require('../controller/notificacao/notificacao_controler.js')
+const { exigirProprietario } = require('../middleware/proprietario.js')
 
 // Criar nova notificação
 router.post('/', bodyParserJSON, async function (request, response) {
-    let dados = request.body
+    let dados = { ...request.body, id_usuario: request.usuario.id }
     let contentType = request.headers['content-type']
 
     let result = await controlerNotificacao.inserirNovaNotificacao(dados, contentType)
@@ -24,7 +25,7 @@ router.post('/', bodyParserJSON, async function (request, response) {
 // Listar as notificações de um usuário (ANTES do /:id).
 // Obrigatório: ?id_usuario=1. Opcional: &nao_lidas=true para trazer só as não lidas.
 router.get('/', async function (request, response) {
-    let idUsuario = request.query.id_usuario
+    let idUsuario = request.usuario.id
     let naoLidas = request.query.nao_lidas
 
     let result = await controlerNotificacao.listarNotificacao(idUsuario, naoLidas)
@@ -34,7 +35,7 @@ router.get('/', async function (request, response) {
 })
 
 // Buscar notificação por ID
-router.get('/:id', async function (request, response) {
+router.get('/:id', exigirProprietario(controlerNotificacao.buscarNotificacao, 'notificacao'), async function (request, response) {
     let id = request.params.id
     let result = await controlerNotificacao.buscarNotificacao(id)
 
@@ -43,7 +44,7 @@ router.get('/:id', async function (request, response) {
 })
 
 // Marcar notificação como lida: PUT com { "lida": true }
-router.put('/:id', bodyParserJSON, async function (request, response) {
+router.put('/:id', exigirProprietario(controlerNotificacao.buscarNotificacao, 'notificacao'), bodyParserJSON, async function (request, response) {
     let contentType = request.headers['content-type']
     let id = request.params.id
     let notificacao = request.body
@@ -55,7 +56,7 @@ router.put('/:id', bodyParserJSON, async function (request, response) {
 })
 
 // Excluir notificação por ID
-router.delete('/:id', async function (request, response) {
+router.delete('/:id', exigirProprietario(controlerNotificacao.buscarNotificacao, 'notificacao'), async function (request, response) {
     let id = request.params.id
     let result = await controlerNotificacao.excluirNotificacao(id)
 

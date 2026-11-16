@@ -53,12 +53,12 @@ const inserirNovaMensagem = async function (mensagem, contentType) {
 }
 
 // A mensagem enviada não é editada: o PUT só marca como lida (ou não lida). Corpo: { "lida": true }
-const atualizarMensagem = async function (mensagem, id, contentType) {
+const atualizarMensagem = async function (mensagem, id, contentType, idUsuario) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
         if (String(contentType).toUpperCase() == 'APPLICATION/JSON') {
-            let resultID = await buscarMensagem(id)
+            let resultID = await buscarMensagem(id, idUsuario)
 
             if (resultID.status) {
                 let valoresAceitos = [true, false, 1, 0, '1', '0', 'true', 'false']
@@ -96,7 +96,14 @@ const atualizarMensagem = async function (mensagem, id, contentType) {
 
 // idConversa vem de ?id_conversa= na rota e é obrigatório: listar as mensagens de todas as conversas
 // juntas expõe conversa alheia.
-const listarMensagem = async function (idConversa) {
+const usuarioParticipaConversa = async function (idConversa, idUsuario) {
+    if (idUsuario === undefined) return true
+    const participantes = await mensagensDAO.selectParticipantesConversa(Number(idConversa))
+    return participantes && participantes.length > 0 &&
+        (Number(participantes[0].id_interessado) === Number(idUsuario) || Number(participantes[0].id_anunciante) === Number(idUsuario))
+}
+
+const listarMensagem = async function (idConversa, idUsuario) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
@@ -104,6 +111,9 @@ const listarMensagem = async function (idConversa) {
             message.ERROR_BAD_REQUEST.field = '[ID_CONVERSA] OBRIGATÓRIO E VÁLIDO (use ?id_conversa=1)'
             return message.ERROR_BAD_REQUEST // 400
         } else {
+            if (!await usuarioParticipaConversa(idConversa, idUsuario)) {
+                return { status: false, status_code: 403, message: 'Você não participa desta conversa.' }
+            }
             let result = await mensagensDAO.selectAllMensagemByConversa(Number(idConversa))
 
             if (result) {
@@ -126,7 +136,7 @@ const listarMensagem = async function (idConversa) {
     }
 }
 
-const buscarMensagem = async function (id) {
+const buscarMensagem = async function (id, idUsuario) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
@@ -138,6 +148,9 @@ const buscarMensagem = async function (id) {
 
             if (result) {
                 if (result.length > 0) {
+                    if (!await usuarioParticipaConversa(result[0].id_conversa, idUsuario)) {
+                        return { status: false, status_code: 403, message: 'Você não participa desta conversa.' }
+                    }
                     message.DEFAULT_MESSAGE.status = message.SUCCESS_RESPONSE.status
                     message.DEFAULT_MESSAGE.status_code = message.SUCCESS_RESPONSE.status_code
                     message.DEFAULT_MESSAGE.response.mensagem = result[0]
@@ -155,11 +168,11 @@ const buscarMensagem = async function (id) {
     }
 }
 
-const excluirMensagem = async function (id) {
+const excluirMensagem = async function (id, idUsuario) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
-        let resultBuscarID = await buscarMensagem(id)
+        let resultBuscarID = await buscarMensagem(id, idUsuario)
 
         if (resultBuscarID.status) {
             let emUso = await mensagensDAO.selectMensagemEmUso(id)

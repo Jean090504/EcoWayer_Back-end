@@ -8,8 +8,12 @@ require('dotenv').config()
 const express = require("express")
 const cors = require("cors")
 const rateLimit = require('express-rate-limit')
+const helmet = require('helmet')
 const autenticacaoUsuario = require('./middleware/autenticacaoUsuario.js')
+const iaRouter = require('./routes/ia.routes.js')
 const app = express();
+app.disable('x-powered-by')
+app.use(helmet())
 
 const origensPermitidas = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
     .split(',').map((origem) => origem.trim()).filter(Boolean)
@@ -20,11 +24,13 @@ const corsOptions = {
     },
     methods: "GET, POST, PUT, DELETE, OPTIONS",
     allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
 }
 app.use(cors(corsOptions))
 app.use(express.json({ limit: '1mb' }))
 app.use('/meraki/ecowayer/user', rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-8', legacyHeaders: false }))
 app.use('/meraki/ecowayer/user', autenticacaoUsuario)
+app.use('/meraki/ecowayer/user/ia', cors(corsOptions), iaRouter)
 
 // ----------------- [ Rotas da API] --------------
 

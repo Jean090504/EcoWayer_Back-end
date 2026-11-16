@@ -1,5 +1,7 @@
 
 import express from 'express'
+import helmet from 'helmet'
+import { rateLimiterMiddleware } from './middlewares/rateLimiter.js'
 import { env } from './config/env.js'
 import { Database } from './config/database.js'
 import { apiRoutes } from './routes/apiRoutes.js'
@@ -10,6 +12,9 @@ export const app = express()
 
 app.use(express.json({ limit: '1mb' }))
 app.use(express.urlencoded({ extended: true, limit: '1mb' }))
+app.disable('x-powered-by')
+app.use(helmet())
+app.use(rateLimiterMiddleware)
 
 app.use((req, res, next) => {
   const origin = req.headers.origin

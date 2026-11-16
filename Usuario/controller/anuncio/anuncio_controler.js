@@ -65,7 +65,7 @@ const inserirNovoAnuncio = async function (anuncio, contentType) {
     }
 }
 
-const atualizarAnuncio = async function (id, anuncio, contentType) {
+const atualizarAnuncio = async function (id, anuncio, contentType, idUsuario) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
@@ -84,6 +84,8 @@ const atualizarAnuncio = async function (id, anuncio, contentType) {
             return message.ERROR_INTERNAL_SEVER_MODEL // 500
         } else if (!existente || existente.length == 0) {
             return message.ERROR_NOT_FOUND // 404
+        } else if (Number(existente[0].id_usuario) !== Number(idUsuario)) {
+            return { status: false, status_code: 403, message: 'Você só pode alterar seus próprios anúncios.' }
         }
 
         let validar = validarDados(anuncio)
@@ -94,7 +96,7 @@ const atualizarAnuncio = async function (id, anuncio, contentType) {
             let anuncioNormalizado = normalizarDados(anuncio)
             anuncioNormalizado.id = Number(id)
 
-            let result = await anuncioDAO.updateAnuncio(anuncioNormalizado)
+            let result = await anuncioDAO.updateAnuncio(anuncioNormalizado, idUsuario)
 
             if (result) {
                 message.DEFAULT_MESSAGE.status = message.SUCCESS_UPDETED_ITEM.status
@@ -165,7 +167,7 @@ const buscarAnuncio = async function (id) {
     }
 }
 
-const excluirAnuncio = async function (id) {
+const excluirAnuncio = async function (id, idUsuario) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
@@ -180,9 +182,11 @@ const excluirAnuncio = async function (id) {
             return message.ERROR_INTERNAL_SEVER_MODEL // 500
         } else if (!existente || existente.length == 0) {
             return message.ERROR_NOT_FOUND // 404
+        } else if (Number(existente[0].id_usuario) !== Number(idUsuario)) {
+            return { status: false, status_code: 403, message: 'Você só pode excluir seus próprios anúncios.' }
         }
 
-        let result = await anuncioDAO.deleteAnuncio(Number(id))
+        let result = await anuncioDAO.deleteAnuncio(Number(id), idUsuario)
 
         if (result) {
             message.DEFAULT_MESSAGE.status = message.SUCCESS_DELETED_ITEM.status

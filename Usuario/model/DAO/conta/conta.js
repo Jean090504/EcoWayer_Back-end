@@ -57,6 +57,19 @@ const selectContaById = async function (id) {
     }
 }
 
+const selectContaByUsuario = async function (idUsuario) {
+    try {
+        const sql = `select c.id, c.id_email
+                     from tbl_conta c
+                     inner join tbl_email e on e.id = c.id_email
+                     where e.id_usuario = ?`
+        const result = await knexConex.raw(sql, [idUsuario])
+        return result ? result[0] : false
+    } catch (error) {
+        return false
+    }
+}
+
 const deleteConta = async function (id) {
     try {
         let sql = `delete from tbl_conta where id = ?`
@@ -76,5 +89,6 @@ module.exports = {
     updateConta,
     selectAllContas,
     selectContaById,
+    selectContaByUsuario,
     deleteConta
 }

@@ -4,16 +4,17 @@
  * -> Arquivo responsavel por iniciar a api e gerenciar suas rotas
  *********************************/
 
-try {
-    process.loadEnvFile()
-} catch {
-    // Em versões anteriores do Node, as variáveis devem ser fornecidas pelo ambiente.
-}
+require('dotenv').config()
 
 const express = require("express")
 const cors = require("cors")
+const helmet = require('helmet')
+const rateLimit = require('express-rate-limit')
 const autenticacaoAdmin = require('./middleware/autenticacaoAdmin.js')
 const app = express();
+app.disable('x-powered-by')
+app.use(helmet())
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-8', legacyHeaders: false }))
 
 const origensPermitidas = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
     .split(',').map((origem) => origem.trim()).filter(Boolean)

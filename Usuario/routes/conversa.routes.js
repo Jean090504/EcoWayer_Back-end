@@ -12,7 +12,7 @@ const controlerConversa = require('../controller/conversa/conversa_controler.js'
 
 // Abrir nova conversa sobre um anúncio
 router.post('/', bodyParserJSON, async function (request, response) {
-    let dados = request.body
+    let dados = { ...request.body, id_usuario: request.usuario.id }
     let contentType = request.headers['content-type']
 
     let result = await controlerConversa.inserirNovaConversa(dados, contentType)
@@ -23,7 +23,7 @@ router.post('/', bodyParserJSON, async function (request, response) {
 
 // Listar conversas (ANTES do /:id). Use ?id_usuario=1 para listar só as conversas de um usuário.
 router.get('/', async function (request, response) {
-    let idUsuario = request.query.id_usuario
+    let idUsuario = request.usuario.id
 
     let result = await controlerConversa.listarConversa(idUsuario)
 
@@ -34,7 +34,7 @@ router.get('/', async function (request, response) {
 // Buscar conversa por ID
 router.get('/:id', async function (request, response) {
     let id = request.params.id
-    let result = await controlerConversa.buscarConversa(id)
+    let result = await controlerConversa.buscarConversa(id, request.usuario.id)
 
     response.status(result.status_code)
     response.json(result)
@@ -43,7 +43,7 @@ router.get('/:id', async function (request, response) {
 // Excluir conversa por ID (só se não tiver mensagens nem propostas)
 router.delete('/:id', async function (request, response) {
     let id = request.params.id
-    let result = await controlerConversa.excluirConversa(id)
+    let result = await controlerConversa.excluirConversa(id, request.usuario.id)
 
     response.status(result.status_code)
     response.json(result)

@@ -12,7 +12,7 @@ const controlerMensagens = require('../controller/mensagens/mensagens_controler.
 
 // Enviar nova mensagem (também gera a notificação para a outra pessoa da conversa)
 router.post('/', bodyParserJSON, async function (request, response) {
-    let dados = request.body
+    let dados = { ...request.body, id_remetente: request.usuario.id }
     let contentType = request.headers['content-type']
 
     let result = await controlerMensagens.inserirNovaMensagem(dados, contentType)
@@ -25,7 +25,7 @@ router.post('/', bodyParserJSON, async function (request, response) {
 router.get('/', async function (request, response) {
     let idConversa = request.query.id_conversa
 
-    let result = await controlerMensagens.listarMensagem(idConversa)
+    let result = await controlerMensagens.listarMensagem(idConversa, request.usuario.id)
 
     response.status(result.status_code)
     response.json(result)
@@ -34,7 +34,7 @@ router.get('/', async function (request, response) {
 // Buscar mensagem por ID
 router.get('/:id', async function (request, response) {
     let id = request.params.id
-    let result = await controlerMensagens.buscarMensagem(id)
+    let result = await controlerMensagens.buscarMensagem(id, request.usuario.id)
 
     response.status(result.status_code)
     response.json(result)
@@ -46,7 +46,7 @@ router.put('/:id', bodyParserJSON, async function (request, response) {
     let id = request.params.id
     let mensagem = request.body
 
-    let result = await controlerMensagens.atualizarMensagem(mensagem, id, contentType)
+    let result = await controlerMensagens.atualizarMensagem(mensagem, id, contentType, request.usuario.id)
 
     response.status(result.status_code)
     response.json(result)
@@ -55,7 +55,7 @@ router.put('/:id', bodyParserJSON, async function (request, response) {
 // Excluir mensagem por ID
 router.delete('/:id', async function (request, response) {
     let id = request.params.id
-    let result = await controlerMensagens.excluirMensagem(id)
+    let result = await controlerMensagens.excluirMensagem(id, request.usuario.id)
 
     response.status(result.status_code)
     response.json(result)

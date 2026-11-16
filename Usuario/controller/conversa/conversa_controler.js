@@ -127,7 +127,7 @@ const listarConversa = async function (idUsuario) {
     }
 }
 
-const buscarConversa = async function (id) {
+const buscarConversa = async function (id, idUsuario) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
@@ -139,6 +139,9 @@ const buscarConversa = async function (id) {
 
             if (result) {
                 if (result.length > 0) {
+                    if (idUsuario !== undefined && Number(result[0].id_interessado) !== Number(idUsuario) && Number(result[0].id_anunciante) !== Number(idUsuario)) {
+                        return { status: false, status_code: 403, message: 'Você não participa desta conversa.' }
+                    }
                     message.DEFAULT_MESSAGE.status = message.SUCCESS_RESPONSE.status
                     message.DEFAULT_MESSAGE.status_code = message.SUCCESS_RESPONSE.status_code
                     message.DEFAULT_MESSAGE.response.conversa = result[0]
@@ -156,11 +159,11 @@ const buscarConversa = async function (id) {
     }
 }
 
-const excluirConversa = async function (id) {
+const excluirConversa = async function (id, idUsuario) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
-        let resultBuscarID = await buscarConversa(id)
+        let resultBuscarID = await buscarConversa(id, idUsuario)
 
         if (resultBuscarID.status) {
             let emUso = await conversaDAO.selectConversaEmUso(id)

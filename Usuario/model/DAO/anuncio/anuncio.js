@@ -38,7 +38,7 @@ const insertAnuncio = async function (anuncio) {
     }
 }
 
-const updateAnuncio = async function (anuncio) {
+const updateAnuncio = async function (anuncio, idUsuario) {
     try {
         let sql = `update tbl_anuncio
                       set nome = ?,
@@ -51,7 +51,7 @@ const updateAnuncio = async function (anuncio) {
                           preco = ?,
                           peso_kg = ?,
                           status = ?
-                    where id = ?`
+                    where id = ? and id_usuario = ?`
 
         let result = await knexConex.raw(sql, [
             anuncio.nome,
@@ -64,7 +64,8 @@ const updateAnuncio = async function (anuncio) {
             anuncio.preco,
             anuncio.peso_kg,
             anuncio.status,
-            anuncio.id
+            anuncio.id,
+            idUsuario
         ])
 
         if (result)
@@ -109,11 +110,11 @@ const selectAnuncioById = async function (id) {
     }
 }
 
-const deleteAnuncio = async function (id) {
+const deleteAnuncio = async function (id, idUsuario) {
     try {
-        let sql = `delete from tbl_anuncio where id = ?`
+        let sql = `delete from tbl_anuncio where id = ? and id_usuario = ?`
 
-        let result = await knexConex.raw(sql, [id])
+        let result = await knexConex.raw(sql, [id, idUsuario])
 
         if (result)
             return true
