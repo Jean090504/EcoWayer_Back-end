@@ -1,2 +1,4 @@
 node_modules/
 .env
+# Fotos enviadas por usuários
+uploads/

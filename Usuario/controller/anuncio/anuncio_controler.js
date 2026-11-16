@@ -270,6 +270,8 @@ const normalizarDados = function (anuncio) {
 }
 
 module.exports = {
+    validarDados,
+    normalizarDados,
     inserirNovoAnuncio,
     atualizarAnuncio,
     listarAnuncios,

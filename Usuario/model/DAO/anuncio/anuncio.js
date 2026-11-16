@@ -80,7 +80,11 @@ const updateAnuncio = async function (anuncio, idUsuario) {
 
 const selectAllAnuncios = async function () {
     try {
-        let sql = `select * from tbl_anuncio order by id`
+        let sql = `SELECT a.*,
+    (SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = a.id ORDER BY ia.id LIMIT 1) AS imagem,
+    (SELECT c.nome FROM tbl_categoria c WHERE c.id = a.id_categoria) AS categoria,
+    (SELECT m.nome FROM tbl_modalidade m WHERE m.id = a.id_modalidade) AS modalidade_nome
+    FROM tbl_anuncio a ORDER BY a.id`
 
         let result = await knexConex.raw(sql)
 
@@ -96,14 +100,22 @@ const selectAllAnuncios = async function () {
 
 const selectAnuncioById = async function (id) {
     try {
-        let sql = `select * from tbl_anuncio where id = ?`
+        let sql = `SELECT a.*,
+    (SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = a.id ORDER BY ia.id LIMIT 1) AS imagem,
+    (SELECT c.nome FROM tbl_categoria c WHERE c.id = a.id_categoria) AS categoria,
+    (SELECT m.nome FROM tbl_modalidade m WHERE m.id = a.id_modalidade) AS modalidade_nome
+    FROM tbl_anuncio a WHERE a.id = ?`
 
         let result = await knexConex.raw(sql, [id])
 
-        if (result)
-            return result[0] // array com o anúncio encontrado (vazio se não existir)
-        else
-            return false
+        if (!result) return false
+        if (result[0].length) {
+            const [imagens] = await knexConex.raw(
+                'SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = ? ORDER BY ia.id', [id]
+            )
+            result[0][0].imagens = imagens.map(imagem => imagem.url)
+        }
+        return result[0]
     } catch (error) {
         console.log(error)
         return false
