@@ -22,7 +22,7 @@ const corsOptions = {
         if (!origin || origensPermitidas.includes(origin)) return callback(null, true)
         return callback(new Error('Origem não permitida pelo CORS.'))
     },
-    methods: "GET, POST, PUT, DELETE, OPTIONS",
+    methods: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
 }
@@ -33,6 +33,7 @@ app.use('/meraki/ecowayer/user', autenticacaoUsuario)
 
 const { criarRouter, uploadDir } = require('./routes/publicacao_anuncio.routes.js')
 const dbPublicacao = require('knex')(require('./model/database_config_knex/knexFile.js').development)
+app.use('/meraki/ecowayer/user/usuario', require('./routes/perfil.routes.js').criarRouter(dbPublicacao))
 app.use('/uploads/anuncios', express.static(uploadDir, {
     dotfiles: 'deny',
     setHeaders: res => res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
