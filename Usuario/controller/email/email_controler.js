@@ -12,7 +12,10 @@ const crypto = require('crypto')
 const idValido = (id) =>
     /^\d+$/.test(String(id)) && Number.isSafeInteger(Number(id)) && Number(id) > 0
 
-const gerarCodigo = () => String(crypto.randomInt(0, 1000000)).padStart(6, '0')
+const gerarCodigo = () => {
+    const caracteres = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    return Array.from({ length: 6 }, () => caracteres[crypto.randomInt(0, caracteres.length)]).join('')
+}
 
 // Remove o código de verificação da resposta (dado sensível)
 const ocultarCodigo = (registro) => {

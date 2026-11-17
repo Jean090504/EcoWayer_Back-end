@@ -88,6 +88,12 @@ app.use('/meraki/ecowayer/user/condicao_item', cors(corsOptions), condicaoItemRo
 const pontoColetaRouter = require('./routes/ponto_coleta.routes.js') // rotas responsaveis pelo ponto de coleta
 app.use('/meraki/ecowayer/user/ponto_coleta', cors(corsOptions), pontoColetaRouter)
 
+const rotaRouter = require('./routes/rota.routes.js') // rotas calculadas pelo Google Routes API
+app.use('/meraki/ecowayer/user/rota', cors(corsOptions), rotaRouter)
+
+const mapaRouter = require('./routes/mapa.routes.js') // pesquisa de cidades e endereços no Google Maps
+app.use('/meraki/ecowayer/user/mapa', cors(corsOptions), mapaRouter)
+
 const horarioPontoColetaRouter = require('./routes/horario_ponto_coleta.routes.js') // rotas responsaveis pelos horarios dos pontos de coleta
 app.use('/meraki/ecowayer/user/horario_ponto_coleta', cors(corsOptions), horarioPontoColetaRouter)
 
@@ -129,6 +135,9 @@ app.use('/meraki/ecowayer/user/usuario_missao', cors(corsOptions), usuarioMissao
 
 const pontosRouter = require('./routes/pontos.routes.js') // registros de pontos do usuario
 app.use('/meraki/ecowayer/user/pontos', cors(corsOptions), pontosRouter)
+
+const carteiraRouter = require('./routes/carteira.routes.js') // resumo de pontos, missões, vouchers e extrato
+app.use('/meraki/ecowayer/user/carteira', cors(corsOptions), carteiraRouter)
 
 const configuracaoPontosRouter = require('./routes/configuracao_pontos.routes.js') // taxa global de conversao de pontos
 app.use('/meraki/ecowayer/user/configuracao_pontos', cors(corsOptions), configuracaoPontosRouter)

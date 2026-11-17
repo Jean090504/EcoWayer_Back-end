@@ -320,9 +320,10 @@ const temValor = function (valor) {
     return !(valor === undefined || valor === null || valor === '')
 }
 
-// código de 6 dígitos para as colunas codigo_verificacao (e-mail e telefone)
+// Código de 6 caracteres alfanuméricos para as colunas codigo_verificacao.
 const gerarCodigo = function () {
-    return String(crypto.randomInt(0, 1000000)).padStart(6, '0')
+    const caracteres = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    return Array.from({ length: 6 }, () => caracteres[crypto.randomInt(0, caracteres.length)]).join('')
 }
 
 const validarCpf = function (cpf) {
