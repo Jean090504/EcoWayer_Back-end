@@ -42,7 +42,9 @@ const buscarComCache = async function (cache, tipo, funcaoBuscar, id) {
 
 // Troca id_ia e id_usuario pelos objetos correspondentes e anexa as listas de anúncios e mensagens
 const montarAlerta = async function (alerta, cache = {}) {
-    alerta.ia = await buscarComCache(cache, 'ia', controlerIa.buscarIA, alerta.id_ia)
+    alerta.ia = alerta.id_ia == null
+        ? null
+        : await buscarComCache(cache, 'ia', controlerIa.buscarIA, alerta.id_ia)
     alerta.usuario = await buscarComCache(cache, 'usuario', controlerUsuario.buscarUsuario, alerta.id_usuario)
 
     delete alerta.id_ia
