@@ -142,10 +142,35 @@ const inserirNovaDenuncia = async function (denuncia, contentType) {
         if (vinculos) return vinculos // 400 ou 500
 
         let dados = normalizarDados(denuncia)
-        let id = await denunciasDAO.insertDenuncia(dados)
+        const temAnuncio = denuncia.id_anuncio !== undefined
+        const fotos = denuncia.fotos ?? []
+        if (!Array.isArray(fotos) || fotos.length > 5 || fotos.some(url =>
+            typeof url !== 'string' || url.length > 255 ||
+            !/^https:\/\/res\.cloudinary\.com\/[a-z0-9_-]+\/image\/upload\/[^\s]+$/i.test(url)
+        ) || (!temAnuncio && fotos.length)) {
+            message.ERROR_BAD_REQUEST.field = '[FOTOS] Envie até cinco URLs de imagens do Cloudinary em denúncias de anúncio.'
+            return message.ERROR_BAD_REQUEST
+        }
+        if (temAnuncio) {
+            if (!idValido(denuncia.id_anuncio)) {
+                message.ERROR_BAD_REQUEST.field = '[ID_ANUNCIO] INVÁLIDO'
+                return message.ERROR_BAD_REQUEST
+            }
+            dados.id_anuncio = Number(denuncia.id_anuncio)
+            const anuncio = await denunciasDAO.selectExiste('tbl_anuncio', dados.id_anuncio)
+            if (anuncio === false) return message.ERROR_INTERNAL_SEVER_MODEL
+            if (!anuncio.length) {
+                message.ERROR_BAD_REQUEST.field = '[ID_ANUNCIO] NÃO EXISTE'
+                return message.ERROR_BAD_REQUEST
+            }
+        }
+
+        let id = temAnuncio
+            ? await denunciasDAO.inserirDenunciaDeAnuncio(dados, [...new Set(fotos)])
+            : await denunciasDAO.insertDenuncia(dados)
 
         if (id) {
-            let vinculosOk = await inserirVinculosDenuncia(id, dados)
+            let vinculosOk = temAnuncio || await inserirVinculosDenuncia(id, dados)
             dados.id = id
 
             message.DEFAULT_MESSAGE.status = vinculosOk ? message.SUCCESS_CREATED_ITEM.status : message.SUCCESS_CREATED_WARNING.status

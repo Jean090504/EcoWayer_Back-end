@@ -10,7 +10,13 @@ const rateLimit = require('express-rate-limit')
 const bodyParserJSON = bodyParser.json()
 
 const controlerUsuario = require('../controller/usuario/usuario_controler.js')
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false })
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    skip: () => process.env.NODE_ENV === 'development' && process.env.DISABLE_LOGIN_RATE_LIMIT === 'true'
+})
 
 router.post('/login', loginLimiter, bodyParserJSON, async function (request, response) {
     let result = await controlerUsuario.loginUsuario(request.body?.email, request.body?.senha)
