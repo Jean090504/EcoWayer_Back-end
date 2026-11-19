@@ -29,7 +29,7 @@ const corsOptions = {
 app.use(cors(corsOptions))
 app.use(express.json({ limit: '1mb' }))
 app.use('/meraki/ecowayer/user', rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-8', legacyHeaders: false }))
-app.use('/meraki/ecowayer/user', autenticacaoUsuario)
+app.use('/meraki/ecowayer/user', autenticacaoUsuario, require('./middleware/permissoesUsuario.js'))
 
 const { criarRouter, uploadDir } = require('./routes/publicacao_anuncio.routes.js')
 const dbPublicacao = require('knex')(require('./model/database_config_knex/knexFile.js').development)
