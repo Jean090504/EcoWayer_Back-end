@@ -54,10 +54,9 @@ const validarVinculos = async function (denuncia) {
         return message.ERROR_BAD_REQUEST
     }
     for (let idMensagem of normalizarLista(denuncia.mensagens)) {
-        let existe = await denunciasDAO.selectExiste('tbl_mensagens', idMensagem)
-        if (existe === false) return message.ERROR_INTERNAL_SEVER_MODEL
-        if (existe.length == 0) {
-            message.ERROR_BAD_REQUEST.field = `[MENSAGENS] O ID ${idMensagem} NÃO EXISTE`
+        const mensagem = await denunciasDAO.buscarMensagemDenunciavel(idMensagem, Number(denuncia.id_denunciante))
+        if (!mensagem) {
+            message.ERROR_BAD_REQUEST.field = '[MENSAGENS] Selecione uma mensagem recebida em uma conversa sua.'
             return message.ERROR_BAD_REQUEST
         }
     }
@@ -143,12 +142,13 @@ const inserirNovaDenuncia = async function (denuncia, contentType) {
 
         let dados = normalizarDados(denuncia)
         const temAnuncio = denuncia.id_anuncio !== undefined
+        const temChamado = temAnuncio || dados.mensagens.length > 0
         const fotos = denuncia.fotos ?? []
         if (!Array.isArray(fotos) || fotos.length > 5 || fotos.some(url =>
             typeof url !== 'string' || url.length > 255 ||
             !/^https:\/\/res\.cloudinary\.com\/[a-z0-9_-]+\/image\/upload\/[^\s]+$/i.test(url)
-        ) || (!temAnuncio && fotos.length)) {
-            message.ERROR_BAD_REQUEST.field = '[FOTOS] Envie até cinco URLs de imagens do Cloudinary em denúncias de anúncio.'
+        ) || (!temChamado && fotos.length)) {
+            message.ERROR_BAD_REQUEST.field = '[FOTOS] Envie até cinco URLs de imagens do Cloudinary em denúncias de anúncio ou mensagem.'
             return message.ERROR_BAD_REQUEST
         }
         if (temAnuncio) {
@@ -165,12 +165,12 @@ const inserirNovaDenuncia = async function (denuncia, contentType) {
             }
         }
 
-        let id = temAnuncio
-            ? await denunciasDAO.inserirDenunciaDeAnuncio(dados, [...new Set(fotos)])
+        let id = temChamado
+            ? await denunciasDAO.inserirDenunciaComChamado(dados, [...new Set(fotos)])
             : await denunciasDAO.insertDenuncia(dados)
 
         if (id) {
-            let vinculosOk = temAnuncio || await inserirVinculosDenuncia(id, dados)
+            let vinculosOk = temChamado || await inserirVinculosDenuncia(id, dados)
             dados.id = id
 
             message.DEFAULT_MESSAGE.status = vinculosOk ? message.SUCCESS_CREATED_ITEM.status : message.SUCCESS_CREATED_WARNING.status

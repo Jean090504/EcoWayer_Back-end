@@ -201,27 +201,50 @@ const deleteImagemDenunciasByIdDenuncia = async function (idDenuncia) {
     }
 }
 
-const inserirDenunciaDeAnuncio = async function (dados, fotos = []) {
+const buscarMensagemDenunciavel = function (idMensagem, idDenunciante, conexao = knexConex) {
+    return conexao('tbl_mensagens as m')
+        .join('tbl_conversa as c', 'c.id', 'm.id_conversa')
+        .join('tbl_anuncio as a', 'a.id', 'c.id_anuncio')
+        .where('m.id', idMensagem)
+        .whereNot('m.id_remetente', idDenunciante)
+        .andWhere(function () {
+            this.where('c.id_usuario', idDenunciante).orWhere('a.id_usuario', idDenunciante)
+        })
+        .first('m.id_remetente')
+}
+
+const inserirDenunciaComChamado = async function (dados, fotos = []) {
     return knexConex.transaction(async trx => {
         const id = await insertDenuncia(dados, trx)
         if (!id) throw new Error('Não foi possível inserir a denúncia.')
 
-        await trx('tbl_denuncias_anuncio').insert({
-            id_anuncio: dados.id_anuncio,
-            id_denuncias: id
-        })
+        const idMensagem = dados.mensagens[0]
+        const anuncio = dados.id_anuncio
+            ? await trx('tbl_anuncio').select('id_usuario').where('id', dados.id_anuncio).first()
+            : null
+        const mensagem = anuncio ? null : await buscarMensagemDenunciavel(idMensagem, dados.id_denunciante, trx)
+        if (!anuncio && !mensagem) throw new Error('Alvo da denúncia indisponível.')
 
-        const anuncio = await trx('tbl_anuncio').select('id_usuario').where('id', dados.id_anuncio).first()
+        if (anuncio) {
+            await trx('tbl_denuncias_anuncio').insert({ id_anuncio: dados.id_anuncio, id_denuncias: id })
+        }
+
         const tipo = await trx('tbl_tipo_denuncias').select('tipo').where('id', dados.id_tipo_denuncias).first()
         const [idAlerta] = await trx('tbl_alertas').insert({
             motivo: tipo.tipo,
             status: 'PENDENTE',
-            id_usuario: anuncio.id_usuario,
-            tipo_alvo: 'ANUNCIO_ITEM',
-            id_alvo: String(dados.id_anuncio)
+            id_usuario: anuncio ? anuncio.id_usuario : mensagem.id_remetente,
+            tipo_alvo: anuncio ? 'ANUNCIO_ITEM' : 'CHAT_MENSAGEM',
+            id_alvo: String(anuncio ? dados.id_anuncio : idMensagem)
         })
 
-        await trx('tbl_alertas_anuncio').insert({ id_alerta: idAlerta, id_anuncio: dados.id_anuncio })
+        if (anuncio) {
+            await trx('tbl_alertas_anuncio').insert({ id_alerta: idAlerta, id_anuncio: dados.id_anuncio })
+        } else {
+            await trx('tbl_alertas_mensagens').insert(dados.mensagens.map(id => ({
+                id_alertas: idAlerta, id_mensagens: id
+            })))
+        }
         await trx('tbl_alertas_denuncias').insert({ id_alertas: idAlerta, id_denuncias: id })
 
         for (const mensagem of dados.mensagens) {
@@ -249,7 +272,8 @@ const inserirDenunciaDeAnuncio = async function (dados, fotos = []) {
 }
 
 module.exports = {
-    inserirDenunciaDeAnuncio,
+    buscarMensagemDenunciavel,
+    inserirDenunciaComChamado,
     insertDenuncia,
     updateDenuncia,
     selectAllDenuncias,
