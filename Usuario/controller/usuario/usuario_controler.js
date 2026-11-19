@@ -425,13 +425,13 @@ const buscarPadroes = async function (dados) {
     let imagem = dados.id_imagem ? [{ id: dados.id_imagem }] : await usuarioDAO.selectIdImagemPadrao()
 
     if (!status || status.length == 0) {
-        console.log('[USUARIO] Status "' + STATUS_PADRAO + '" não encontrado em tbl_status_usuario. Rode o seed_usuario.sql.')
+                console.log('[USUARIO] Status "' + STATUS_PADRAO + '" não encontrado em tbl_status_usuario. Rode os scripts SQL da pasta SCRIPT/.')
         return false
     } else if (!nivel || nivel.length == 0) {
-        console.log('[USUARIO] Nenhum nível em tbl_nivel_impacto. Rode o seed_usuario.sql.')
+                console.log('[USUARIO] Nenhum nível em tbl_nivel_impacto. Rode os scripts SQL da pasta SCRIPT/.')
         return false
     } else if (!imagem || imagem.length == 0) {
-        console.log('[USUARIO] Imagem padrão (tipo "perfil") não encontrada em tbl_imagem. Rode o seed_usuario.sql.')
+                console.log('[USUARIO] Imagem padrão (tipo "perfil") não encontrada em tbl_imagem. Rode os scripts SQL da pasta SCRIPT/.')
         return false
     } else {
         return {
