@@ -270,11 +270,7 @@ const loginUsuario = async function (email, senha) {
             return { status: false, status_code: 401, message: 'E-mail ou senha inválidos.' }
         }
         if (!process.env.JWT_SECRET) return message.ERROR_INTERNAL_CONTROLER
-        const token = require('jsonwebtoken').sign(
-            { id: encontrado.id, email: encontrado.email, tipo: 'usuario' },
-            process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN || '1h' },
-        )
+        const token = require('../../model/sessaoUsuario.js').emitirToken(encontrado, process.env.JWT_SECRET)
         delete encontrado.senha
         message.DEFAULT_MESSAGE.status = true
         message.DEFAULT_MESSAGE.status_code = 200

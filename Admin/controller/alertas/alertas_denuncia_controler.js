@@ -30,7 +30,8 @@ const anexarDenunciasAoAlerta = async function (alerta) {
                     id: denuncia.id,
                     descricao: denuncia.descricao,
                     denunciante: denuncia.denunciante,
-                    tipo_denuncia: denuncia.tipo_denuncia
+                    tipo_denuncia: denuncia.tipo_denuncia,
+                    imagens: await denunciaDAO.listarImagensDaDenuncia(denuncia.id)
                 })
             }
         }

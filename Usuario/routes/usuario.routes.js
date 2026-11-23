@@ -10,7 +10,14 @@ const rateLimit = require('express-rate-limit')
 const bodyParserJSON = bodyParser.json()
 
 const controlerUsuario = require('../controller/usuario/usuario_controler.js')
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false })
+const { lerToken, verificarToken, revogarSessao } = require('../model/sessaoUsuario.js')
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 10,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    skip: () => process.env.NODE_ENV === 'development' && process.env.DISABLE_LOGIN_RATE_LIMIT === 'true'
+})
 
 router.post('/login', loginLimiter, bodyParserJSON, async function (request, response) {
     let result = await controlerUsuario.loginUsuario(request.body?.email, request.body?.senha)
@@ -27,9 +34,15 @@ router.post('/login', loginLimiter, bodyParserJSON, async function (request, res
     response.status(result.status_code).json(result)
 })
 
-router.post('/logout', function (_request, response) {
-    response.clearCookie('ecowayer_token', { httpOnly: true, sameSite: 'lax', path: '/' })
-    response.status(204).end()
+router.post('/logout', async function (request, response) {
+    response.clearCookie('ecowayer_token', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' })
+    try {
+        await revogarSessao(verificarToken(lerToken(request), process.env.JWT_SECRET))
+        response.status(204).end()
+    } catch (erro) {
+        console.error('Falha ao revogar sessão:', erro.code || erro.name)
+        response.status(503).json({ message: 'Não foi possível revogar a sessão agora.' })
+    }
 })
 
 // Cadastrar novo usuário (cria também e-mail, telefone, conta e vínculo com o endereço)

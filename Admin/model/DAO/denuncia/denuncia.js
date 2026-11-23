@@ -92,7 +92,16 @@ const deleteDenuncia = async function (id) {
     }
 }
 
+const listarImagensDaDenuncia = function (idDenuncia) {
+    return knexConex('tbl_imagem_denuncias as vinculo')
+        .join('tbl_imagem as imagem', 'imagem.id', 'vinculo.id_imagem')
+        .where('vinculo.id_denuncias', idDenuncia)
+        .select('imagem.id', 'imagem.url')
+        .orderBy('vinculo.id')
+}
+
 module.exports = {
+    listarImagensDaDenuncia,
     insertDenuncia,
     updateDenuncia,
     selectByIdDenuncia,

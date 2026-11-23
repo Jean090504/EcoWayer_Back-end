@@ -15,7 +15,7 @@ const router = express.Router()
 // POST /  -> registra uma denúncia
 router.post('/', bodyParserJSON, async function (request, response) {
     let contentType = request.headers['content-type']
-    let result = await controllerDenuncias.inserirNovaDenuncia({ ...request.body, id_usuario: request.usuario.id }, contentType)
+    let result = await controllerDenuncias.inserirNovaDenuncia({ ...request.body, id_denunciante: request.usuario.id }, contentType)
 
     response.status(result.status_code)
     response.json(result)

@@ -54,10 +54,9 @@ const validarVinculos = async function (denuncia) {
         return message.ERROR_BAD_REQUEST
     }
     for (let idMensagem of normalizarLista(denuncia.mensagens)) {
-        let existe = await denunciasDAO.selectExiste('tbl_mensagens', idMensagem)
-        if (existe === false) return message.ERROR_INTERNAL_SEVER_MODEL
-        if (existe.length == 0) {
-            message.ERROR_BAD_REQUEST.field = `[MENSAGENS] O ID ${idMensagem} NÃO EXISTE`
+        const mensagem = await denunciasDAO.buscarMensagemDenunciavel(idMensagem, Number(denuncia.id_denunciante))
+        if (!mensagem) {
+            message.ERROR_BAD_REQUEST.field = '[MENSAGENS] Selecione uma mensagem recebida em uma conversa sua.'
             return message.ERROR_BAD_REQUEST
         }
     }
@@ -142,10 +141,36 @@ const inserirNovaDenuncia = async function (denuncia, contentType) {
         if (vinculos) return vinculos // 400 ou 500
 
         let dados = normalizarDados(denuncia)
-        let id = await denunciasDAO.insertDenuncia(dados)
+        const temAnuncio = denuncia.id_anuncio !== undefined
+        const temChamado = temAnuncio || dados.mensagens.length > 0
+        const fotos = denuncia.fotos ?? []
+        if (!Array.isArray(fotos) || fotos.length > 5 || fotos.some(url =>
+            typeof url !== 'string' || url.length > 255 ||
+            !/^https:\/\/res\.cloudinary\.com\/[a-z0-9_-]+\/image\/upload\/[^\s]+$/i.test(url)
+        ) || (!temChamado && fotos.length)) {
+            message.ERROR_BAD_REQUEST.field = '[FOTOS] Envie até cinco URLs de imagens do Cloudinary em denúncias de anúncio ou mensagem.'
+            return message.ERROR_BAD_REQUEST
+        }
+        if (temAnuncio) {
+            if (!idValido(denuncia.id_anuncio)) {
+                message.ERROR_BAD_REQUEST.field = '[ID_ANUNCIO] INVÁLIDO'
+                return message.ERROR_BAD_REQUEST
+            }
+            dados.id_anuncio = Number(denuncia.id_anuncio)
+            const anuncio = await denunciasDAO.selectExiste('tbl_anuncio', dados.id_anuncio)
+            if (anuncio === false) return message.ERROR_INTERNAL_SEVER_MODEL
+            if (!anuncio.length) {
+                message.ERROR_BAD_REQUEST.field = '[ID_ANUNCIO] NÃO EXISTE'
+                return message.ERROR_BAD_REQUEST
+            }
+        }
+
+        let id = temChamado
+            ? await denunciasDAO.inserirDenunciaComChamado(dados, [...new Set(fotos)])
+            : await denunciasDAO.insertDenuncia(dados)
 
         if (id) {
-            let vinculosOk = await inserirVinculosDenuncia(id, dados)
+            let vinculosOk = temChamado || await inserirVinculosDenuncia(id, dados)
             dados.id = id
 
             message.DEFAULT_MESSAGE.status = vinculosOk ? message.SUCCESS_CREATED_ITEM.status : message.SUCCESS_CREATED_WARNING.status
