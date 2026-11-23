@@ -81,7 +81,7 @@ const updateAnuncio = async function (anuncio, idUsuario) {
 const selectAllAnuncios = async function () {
     try {
         let sql = `SELECT a.*,
-    (SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = a.id ORDER BY ia.id LIMIT 1) AS imagem,
+    (SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = a.id ORDER BY ia.ordem IS NULL, ia.ordem, ia.id LIMIT 1) AS imagem,
     (SELECT c.nome FROM tbl_categoria c WHERE c.id = a.id_categoria) AS categoria,
     (SELECT m.nome FROM tbl_modalidade m WHERE m.id = a.id_modalidade) AS modalidade_nome
     FROM tbl_anuncio a ORDER BY a.id`
@@ -101,7 +101,7 @@ const selectAllAnuncios = async function () {
 const selectAnuncioById = async function (id) {
     try {
         let sql = `SELECT a.*,
-    (SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = a.id ORDER BY ia.id LIMIT 1) AS imagem,
+    (SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = a.id ORDER BY ia.ordem IS NULL, ia.ordem, ia.id LIMIT 1) AS imagem,
     (SELECT c.nome FROM tbl_categoria c WHERE c.id = a.id_categoria) AS categoria,
     (SELECT m.nome FROM tbl_modalidade m WHERE m.id = a.id_modalidade) AS modalidade_nome
     FROM tbl_anuncio a WHERE a.id = ?`
@@ -111,7 +111,7 @@ const selectAnuncioById = async function (id) {
         if (!result) return false
         if (result[0].length) {
             const [imagens] = await knexConex.raw(
-                'SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = ? ORDER BY ia.id', [id]
+                'SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = ? ORDER BY ia.ordem IS NULL, ia.ordem, ia.id', [id]
             )
             result[0][0].imagens = imagens.map(imagem => imagem.url)
             // Somente dados públicos do proprietário do anúncio; não usa a rota privada de perfil.

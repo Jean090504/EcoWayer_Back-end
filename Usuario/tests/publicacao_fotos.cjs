@@ -9,22 +9,9 @@ const sessaoUsuario = require(path.join(root, 'model/sessaoUsuario.js'))
 // O teste de fotos usa tokens de teste e exercita o middleware e a autorização do anúncio.
 sessaoUsuario.consultarSessao = async () => true
 
-
-const fetchOriginal = global.fetch
-const fotosEnviadas = new Map()
 process.env.CLOUDINARY_CLOUD_NAME = 'teste-ecowayer'
-process.env.CLOUDINARY_UPLOAD_PRESET = 'teste-unsigned'
-global.fetch = async (url, opcoes) => {
-    if (url === 'https://api.cloudinary.com/v1_1/teste-ecowayer/image/upload') {
-        assert.equal(opcoes.method, 'POST')
-        assert.equal(opcoes.body.get('upload_preset'), 'teste-unsigned')
-        const arquivo = opcoes.body.get('file')
-        const urlEntrega = `https://res.cloudinary.com/teste-ecowayer/image/upload/foto-${fotosEnviadas.size + 1}.png`
-        fotosEnviadas.set(urlEntrega, arquivo)
-        return Response.json({ secure_url: urlEntrega })
-    }
-    return fetchOriginal(url, opcoes)
-}
+const foto = 'https://res.cloudinary.com/teste-ecowayer/image/upload/v1/foto.png'
+const outraFoto = 'https://res.cloudinary.com/teste-ecowayer/image/upload/v1/outra.png'
 
 ;(async () => {
     let trx, server
@@ -33,24 +20,28 @@ global.fetch = async (url, opcoes) => {
         const usuario = await trx('tbl_usuario').first('id')
         assert.ok(usuario, 'Um usuário é necessário para o teste')
         const app = express()
+        app.use(express.json())
         app.use('/meraki/ecowayer/user', require(path.join(root, 'middleware/autenticacaoUsuario.js')))
         app.use('/meraki/ecowayer/user/anuncio', criarRouter(trx))
         server = await new Promise(resolve => { const s = app.listen(0, '127.0.0.1', () => resolve(s)) })
         const base = `http://127.0.0.1:${server.address().port}`
         const endpoint = `${base}/meraki/ecowayer/user/anuncio`
         const token = jwt.sign({ id: usuario.id, tipo: 'usuario' }, process.env.JWT_SECRET, { expiresIn: '5m' })
-        const headers = { Cookie: `ecowayer_token=${token}` }
+        const headers = { 'Content-Type': 'application/json', Cookie: `ecowayer_token=${token}` }
         const opcoesRes = await fetch(`${endpoint}/opcoes`)
         assert.equal(opcoesRes.status, 200)
         const { response: opcoes } = await opcoesRes.json()
-        const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64')
-        function formulario({ bytes = png, quantidade = '2', unidade = 'un', categoria = opcoes.categorias[0].id } = {}) {
-            const form = new FormData()
-            for (const [key, value] of Object.entries({ nome: 'Teste temporário de upload', descricao: 'Descrição de validação da publicação com imagens.', id_categoria: categoria, id_modalidade: opcoes.modalidades[0].id, id_condicao_item: opcoes.condicoes[0].id, quantidade, unidade, preco: '' })) form.append(key, String(value))
-            form.append('fotos', new Blob([bytes], { type: 'image/png' }), '../../arquivo.png')
-            return form
+        function formulario({ fotos = [foto], quantidade = '2', unidade = 'un', categoria = opcoes.categorias[0].id } = {}) {
+            return JSON.stringify({
+                nome: 'Teste temporário de publicação',
+                descricao: 'Descrição de validação da publicação com imagens.',
+                id_categoria: categoria,
+                id_modalidade: opcoes.modalidades[0].id,
+                id_condicao_item: opcoes.condicoes[0].id,
+                quantidade, unidade, preco: '', fotos
+            })
         }
-        const semSessao = await fetch(`${endpoint}/publicar`, { method: 'POST', body: formulario() })
+        const semSessao = await fetch(`${endpoint}/publicar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: formulario() })
         assert.equal(semSessao.status, 401)
         console.log('PASS: publicação exige autenticação')
         const res = await fetch(`${endpoint}/publicar`, { method: 'POST', headers, body: formulario() })
@@ -59,14 +50,20 @@ global.fetch = async (url, opcoes) => {
         const anuncio = body.response.anuncio
         assert.equal(anuncio.id_usuario, usuario.id)
         assert.equal(anuncio.peso_kg, null)
-        const imagem = fotosEnviadas.get(anuncio.imagem)
-        assert.equal(imagem.type, 'image/png')
-        assert.deepEqual(Buffer.from(await imagem.arrayBuffer()), png)
+        assert.equal(anuncio.imagem, foto)
         const vinculo = await trx('tbl_imagem_anuncio').where({ id_anuncio: anuncio.id }).first()
         const registro = await trx('tbl_imagem').where({ id: vinculo.id_imagem }).first()
         assert.equal(registro.url, anuncio.imagem)
+        assert.equal(vinculo.ordem, 1)
         console.log('PASS: URL do Cloudinary salva, vínculo gravado e unidades preservadas')
-        for (const [nome, config] of [['arquivo inválido', { bytes: Buffer.from('<script>alert(1)</script>') }], ['categoria inexistente', { categoria: 2147483647 }], ['unidade fracionada', { quantidade: '1.5' }], ['foto acima de 5 MB', { bytes: Buffer.alloc(5 * 1024 * 1024 + 1) }]]) {
+        for (const [nome, config] of [
+            ['URL externa', { fotos: ['https://example.com/foto.png'] }],
+            ['URL de outra conta Cloudinary', { fotos: [foto.replace('teste-ecowayer', 'outra-conta')] }],
+            ['categoria inexistente', { categoria: 2147483647 }],
+            ['unidade fracionada', { quantidade: '1.5' }],
+            ['foto repetida', { fotos: [foto, foto] }],
+            ['galeria acima do limite', { fotos: Array.from({ length: 7 }, (_, i) => foto.replace('foto.png', `foto-${i}.png`)) }]
+        ]) {
             const r = await fetch(`${endpoint}/publicar`, { method: 'POST', headers, body: formulario(config) })
             assert.equal(r.status, 400, nome)
             console.log('PASS: rejeita', nome)
@@ -80,20 +77,19 @@ global.fetch = async (url, opcoes) => {
         await trx('tbl_anuncio').where({ id: anuncio.id }).update({ status: 'pausado' })
         const antes = await trx('tbl_anuncio').where({ id: anuncio.id }).first()
         function edicao(mantidas, nova = false) {
-            const form = formulario()
-            form.delete('fotos')
-            form.set('nome', 'Título alterado no teste')
-            form.set('quantidade', '3')
-            form.set('fotos_mantidas', JSON.stringify(mantidas))
-            if (nova) form.append('fotos', new Blob([png], { type: 'image/png' }), 'nova.png')
-            return form
+            const form = JSON.parse(formulario({ fotos: nova ? [outraFoto] : [], quantidade: '3' }))
+            form.nome = 'Título alterado no teste'
+            form.fotos_mantidas = mantidas
+            return JSON.stringify(form)
         }
         const editada = await fetch(`${endpoint}/${anuncio.id}/publicar`, { method: 'PUT', headers, body: edicao([anuncio.imagem], true) })
         const editBody = await editada.json()
         assert.equal(editada.status, 200, JSON.stringify(editBody))
         const editAnuncio = editBody.response.anuncio
         const novaUrl = editAnuncio.imagens[1]
-        assert.equal(editAnuncio.imagens.length, 2)
+        assert.deepEqual(editAnuncio.imagens, [foto, outraFoto])
+        const galeria = await trx('tbl_imagem_anuncio').where({ id_anuncio: anuncio.id }).orderBy('ordem')
+        assert.deepEqual(galeria.map(imagem => imagem.ordem), [1, 2])
         assert.equal(editAnuncio.status, 'pausado')
         const depois = await trx('tbl_anuncio').where({ id: anuncio.id }).first()
         assert.equal(depois.nome, 'Título alterado no teste')
@@ -106,7 +102,7 @@ global.fetch = async (url, opcoes) => {
         assert.equal((await trx('tbl_imagem_anuncio').where({ id_anuncio: anuncio.id })).length, 1)
         console.log('PASS: edição permite remover foto e salvar sem reenviar as existentes')
         const outroToken = jwt.sign({ id: usuario.id + 100000, tipo: 'usuario' }, process.env.JWT_SECRET, { expiresIn: '5m' })
-        const negada = await fetch(`${endpoint}/${anuncio.id}/publicar`, { method: 'PUT', headers: { Cookie: `ecowayer_token=${outroToken}` }, body: edicao([novaUrl]) })
+        const negada = await fetch(`${endpoint}/${anuncio.id}/publicar`, { method: 'PUT', headers: { ...headers, Cookie: `ecowayer_token=${outroToken}` }, body: edicao([novaUrl]) })
         assert.equal(negada.status, 404)
         console.log('PASS: edição de anúncio alheio bloqueada')
         for (const mantidas of [[], ['/uploads/anuncios/foto-de-outro-anuncio.png']]) {
