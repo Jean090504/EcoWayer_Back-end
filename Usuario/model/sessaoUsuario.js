@@ -57,9 +57,9 @@ async function revogarSessao(usuario) {
     if (usuario?.tipo !== 'usuario' || !usuario.jti) return
     await db('tbl_sessao_usuario_revogada').insert({
         id_token: usuario.jti,
-        expira_em: new Date(usuario.exp * 1000)
+        expira_em: db.raw("TIMESTAMPADD(SECOND, ?, '1970-01-01 00:00:00')", [usuario.exp])
     }).onConflict('id_token').ignore()
-    await db('tbl_sessao_usuario_revogada').where('expira_em', '<=', db.fn.now()).del()
+    await db('tbl_sessao_usuario_revogada').where('expira_em', '<=', db.raw('UTC_TIMESTAMP()')).del()
 }
 
 module.exports = { emitirToken, lerToken, verificarToken, consultarSessao, revogarSessao }
