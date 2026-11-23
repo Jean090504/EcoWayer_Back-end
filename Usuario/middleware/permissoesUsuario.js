@@ -11,8 +11,9 @@ const recursosSomenteLeitura = new Set([
 module.exports = function permissoesUsuario(req, res, next) {
     const recurso = req.path.split('/')[1]?.toLowerCase()
     const leitura = ['GET', 'HEAD', 'OPTIONS'].includes(req.method)
+    const resgate = req.method === 'POST' && /^\/voucher\/resgatar\/?$/i.test(req.path)
     if ((req.method !== 'OPTIONS' && recursosInternos.has(recurso)) ||
-        (!leitura && recursosSomenteLeitura.has(recurso))) {
+        (!leitura && !resgate && recursosSomenteLeitura.has(recurso))) {
         return res.status(403).json({ status: false, status_code: 403, message: 'Operação restrita.' })
     }
     if (!leitura && ['conta', 'email'].includes(recurso)) {
