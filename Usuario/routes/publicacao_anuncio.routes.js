@@ -1,8 +1,7 @@
 const express = require('express')
 const multer = require('multer')
 const path = require('node:path')
-const fs = require('node:fs/promises')
-const { randomUUID } = require('node:crypto')
+const { enviarFotoAnuncio } = require('../services/cloudinary.js')
 const controller = require('../controller/anuncio/anuncio_controler.js')
 
 const uploadDir = path.resolve(__dirname, '../uploads/anuncios')
@@ -36,7 +35,6 @@ function criarRouter(db) {
     router.post('/publicar', (req, res) => {
         upload(req, res, async (errorUpload) => {
             if (errorUpload) return res.status(400).json({ message: 'Envie até 6 fotos de até 5 MB cada, no campo fotos.' })
-            const arquivos = []
             try {
                 const dados = { ...req.body, id_usuario: req.usuario.id, status: 'ativo', data_publicacao: new Date().toISOString().slice(0, 19).replace('T', ' ') }
                 const erro = controller.validarDados(dados)
@@ -63,14 +61,9 @@ function criarRouter(db) {
                     const tipo = await trx('tbl_tipo_imagem').whereRaw('LOWER(tipo) IN (?, ?)', ['anúncio', 'anuncio']).first()
                     if (!tipo) throw new Error('Tipo de imagem Anúncio não cadastrado.')
                     const [id] = await trx('tbl_anuncio').insert(anuncio)
-                    await fs.mkdir(uploadDir, { recursive: true })
                     const imagens = []
                     for (let i = 0; i < req.files.length; i++) {
-                        const nome = `${randomUUID()}.${extensoes[i]}`
-                        const destino = path.join(uploadDir, nome)
-                        arquivos.push(destino)
-                        await fs.writeFile(destino, req.files[i].buffer, { flag: 'wx' })
-                        const url = `/uploads/anuncios/${nome}`
+                        const url = await enviarFotoAnuncio(req.files[i].buffer, extensoes[i])
                         const [idImagem] = await trx('tbl_imagem').insert({ url, id_tipo_imagem: tipo.id })
                         await trx('tbl_imagem_anuncio').insert({ id_imagem: idImagem, id_anuncio: id })
                         imagens.push(url)
@@ -79,7 +72,6 @@ function criarRouter(db) {
                 })
                 res.status(201).json({ response: { anuncio: resultado } })
             } catch (error) {
-                await Promise.all(arquivos.map(p => fs.unlink(p).catch(() => {})))
                 console.error('Publicação com fotos:', error)
                 res.status(error.status || 500).json({ message: error.status ? error.message : 'Não foi possível publicar o anúncio. Nenhuma publicação foi salva.' })
             }
@@ -88,7 +80,6 @@ function criarRouter(db) {
     router.put('/:id/publicar', (req, res) => {
         upload(req, res, async errorUpload => {
             if (errorUpload) return res.status(400).json({ message: 'Envie até 6 fotos de até 5 MB cada.' })
-            const arquivosNovos = []
             const falhar = (message, status = 400) => { const e = new Error(message); e.status = status; throw e }
             try {
                 if (!/^\d+$/.test(req.params.id) || !Number.isSafeInteger(Number(req.params.id)) || Number(req.params.id) < 1) falhar('Anúncio inválido.')
@@ -122,13 +113,8 @@ function criarRouter(db) {
                     if (fotos.length) {
                         const tipo = await trx('tbl_tipo_imagem').whereRaw('LOWER(tipo) IN (?, ?)', ['anúncio', 'anuncio']).first()
                         if (!tipo) throw new Error('Tipo de imagem Anúncio não cadastrado.')
-                        await fs.mkdir(uploadDir, { recursive: true })
                         for (let i = 0; i < fotos.length; i++) {
-                            const nome = `${randomUUID()}.${extensoes[i]}`
-                            const destino = path.join(uploadDir, nome)
-                            await fs.writeFile(destino, fotos[i].buffer, { flag: 'wx' })
-                            arquivosNovos.push(destino)
-                            const url = `/uploads/anuncios/${nome}`
+                            const url = await enviarFotoAnuncio(fotos[i].buffer, extensoes[i])
                             const [idImagem] = await trx('tbl_imagem').insert({ url, id_tipo_imagem: tipo.id })
                             await trx('tbl_imagem_anuncio').insert({ id_imagem: idImagem, id_anuncio: atual.id })
                             imagens.push(url)
@@ -138,7 +124,6 @@ function criarRouter(db) {
                 })
                 res.json({ response: { anuncio: resultado } })
             } catch (error) {
-                await Promise.all(arquivosNovos.map(p => fs.unlink(p).catch(() => {})))
                 if (!error.status) console.error('Edição de anúncio com fotos:', error)
                 res.status(error.status || 500).json({ message: error.status ? error.message : 'Não foi possível salvar as alterações. Tente novamente.' })
             }

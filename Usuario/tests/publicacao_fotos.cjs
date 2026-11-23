@@ -1,21 +1,38 @@
 const assert = require('node:assert/strict')
 const path = require('node:path')
-const fs = require('node:fs/promises')
 const root = process.cwd()
 const express = require(path.join(root, 'node_modules/express'))
 const jwt = require(path.join(root, 'node_modules/jsonwebtoken'))
 const db = require(path.join(root, 'node_modules/knex'))(require(path.join(root, 'model/database_config_knex/knexFile.js')).development)
-const { criarRouter, uploadDir } = require(path.join(root, 'routes/publicacao_anuncio.routes.js'))
+const { criarRouter } = require(path.join(root, 'routes/publicacao_anuncio.routes.js'))
+const sessaoUsuario = require(path.join(root, 'model/sessaoUsuario.js'))
+// O teste de fotos usa tokens de teste e exercita o middleware e a autorização do anúncio.
+sessaoUsuario.consultarSessao = async () => true
+
+
+const fetchOriginal = global.fetch
+const fotosEnviadas = new Map()
+process.env.CLOUDINARY_CLOUD_NAME = 'teste-ecowayer'
+process.env.CLOUDINARY_UPLOAD_PRESET = 'teste-unsigned'
+global.fetch = async (url, opcoes) => {
+    if (url === 'https://api.cloudinary.com/v1_1/teste-ecowayer/image/upload') {
+        assert.equal(opcoes.method, 'POST')
+        assert.equal(opcoes.body.get('upload_preset'), 'teste-unsigned')
+        const arquivo = opcoes.body.get('file')
+        const urlEntrega = `https://res.cloudinary.com/teste-ecowayer/image/upload/foto-${fotosEnviadas.size + 1}.png`
+        fotosEnviadas.set(urlEntrega, arquivo)
+        return Response.json({ secure_url: urlEntrega })
+    }
+    return fetchOriginal(url, opcoes)
+}
 
 ;(async () => {
     let trx, server
-    const arquivos = []
     try {
         trx = await db.transaction()
         const usuario = await trx('tbl_usuario').first('id')
         assert.ok(usuario, 'Um usuário é necessário para o teste')
         const app = express()
-        app.use('/uploads/anuncios', express.static(uploadDir))
         app.use('/meraki/ecowayer/user', require(path.join(root, 'middleware/autenticacaoUsuario.js')))
         app.use('/meraki/ecowayer/user/anuncio', criarRouter(trx))
         server = await new Promise(resolve => { const s = app.listen(0, '127.0.0.1', () => resolve(s)) })
@@ -40,17 +57,15 @@ const { criarRouter, uploadDir } = require(path.join(root, 'routes/publicacao_an
         const body = await res.json()
         assert.equal(res.status, 201, JSON.stringify(body))
         const anuncio = body.response.anuncio
-        arquivos.push(path.join(uploadDir, path.basename(anuncio.imagem)))
         assert.equal(anuncio.id_usuario, usuario.id)
         assert.equal(anuncio.peso_kg, null)
-        const imagem = await fetch(`${base}${anuncio.imagem}`)
-        assert.equal(imagem.status, 200)
-        assert.match(imagem.headers.get('content-type'), /image\/png/)
+        const imagem = fotosEnviadas.get(anuncio.imagem)
+        assert.equal(imagem.type, 'image/png')
         assert.deepEqual(Buffer.from(await imagem.arrayBuffer()), png)
         const vinculo = await trx('tbl_imagem_anuncio').where({ id_anuncio: anuncio.id }).first()
         const registro = await trx('tbl_imagem').where({ id: vinculo.id_imagem }).first()
         assert.equal(registro.url, anuncio.imagem)
-        console.log('PASS: foto acessível pela URL, vínculo gravado e unidades preservadas')
+        console.log('PASS: URL do Cloudinary salva, vínculo gravado e unidades preservadas')
         for (const [nome, config] of [['arquivo inválido', { bytes: Buffer.from('<script>alert(1)</script>') }], ['categoria inexistente', { categoria: 2147483647 }], ['unidade fracionada', { quantidade: '1.5' }], ['foto acima de 5 MB', { bytes: Buffer.alloc(5 * 1024 * 1024 + 1) }]]) {
             const r = await fetch(`${endpoint}/publicar`, { method: 'POST', headers, body: formulario(config) })
             assert.equal(r.status, 400, nome)
@@ -59,7 +74,6 @@ const { criarRouter, uploadDir } = require(path.join(root, 'routes/publicacao_an
         const r = await fetch(`${endpoint}/publicar`, { method: 'POST', headers, body: formulario({ quantidade: '1.25', unidade: 't' }) })
         const b = await r.json()
         assert.equal(r.status, 201, JSON.stringify(b))
-        arquivos.push(path.join(uploadDir, path.basename(b.response.anuncio.imagem)))
         assert.equal(b.response.anuncio.peso_kg, 1250)
         console.log('PASS: toneladas convertidas corretamente para kg')
         // Edição usa apenas o anúncio criado nesta transação de teste.
@@ -79,7 +93,6 @@ const { criarRouter, uploadDir } = require(path.join(root, 'routes/publicacao_an
         assert.equal(editada.status, 200, JSON.stringify(editBody))
         const editAnuncio = editBody.response.anuncio
         const novaUrl = editAnuncio.imagens[1]
-        arquivos.push(path.join(uploadDir, path.basename(novaUrl)))
         assert.equal(editAnuncio.imagens.length, 2)
         assert.equal(editAnuncio.status, 'pausado')
         const depois = await trx('tbl_anuncio').where({ id: anuncio.id }).first()
@@ -105,8 +118,7 @@ const { criarRouter, uploadDir } = require(path.join(root, 'routes/publicacao_an
     } finally {
         if (server) await new Promise(resolve => server.close(resolve))
         if (trx) await trx.rollback()
-        await Promise.all(arquivos.map(f => fs.unlink(f)))
         await db.destroy()
-        console.log('Rollback concluído e fotos de teste removidas')
+        console.log('Rollback concluído')
     }
 })().then(() => process.exit(0), e => { console.error(e); process.exit(1) })
