@@ -51,7 +51,7 @@ const updateAnuncio = async function (anuncio, idUsuario) {
                           preco = ?,
                           peso_kg = ?,
                           status = ?
-                    where id = ? and id_usuario = ?`
+                    where id = ? and id_usuario = ? and status <> 'excluido'`
 
         let result = await knexConex.raw(sql, [
             anuncio.nome,
@@ -68,10 +68,7 @@ const updateAnuncio = async function (anuncio, idUsuario) {
             idUsuario
         ])
 
-        if (result)
-            return true
-        else
-            return false
+        return result[0].affectedRows > 0
     } catch (error) {
         console.log(error)
         return false
@@ -84,7 +81,7 @@ const selectAllAnuncios = async function () {
     (SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = a.id ORDER BY ia.ordem IS NULL, ia.ordem, ia.id LIMIT 1) AS imagem,
     (SELECT c.nome FROM tbl_categoria c WHERE c.id = a.id_categoria) AS categoria,
     (SELECT m.nome FROM tbl_modalidade m WHERE m.id = a.id_modalidade) AS modalidade_nome
-    FROM tbl_anuncio a ORDER BY a.id`
+    FROM tbl_anuncio a WHERE a.status <> 'excluido' ORDER BY a.id`
 
         let result = await knexConex.raw(sql)
 
@@ -104,7 +101,7 @@ const selectAnuncioById = async function (id) {
     (SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = a.id ORDER BY ia.ordem IS NULL, ia.ordem, ia.id LIMIT 1) AS imagem,
     (SELECT c.nome FROM tbl_categoria c WHERE c.id = a.id_categoria) AS categoria,
     (SELECT m.nome FROM tbl_modalidade m WHERE m.id = a.id_modalidade) AS modalidade_nome
-    FROM tbl_anuncio a WHERE a.id = ?`
+    FROM tbl_anuncio a WHERE a.id = ? AND a.status <> 'excluido'`
 
         let result = await knexConex.raw(sql, [id])
 
@@ -135,14 +132,12 @@ const selectAnuncioById = async function (id) {
 
 const deleteAnuncio = async function (id, idUsuario) {
     try {
-        let sql = `delete from tbl_anuncio where id = ? and id_usuario = ?`
-
-        let result = await knexConex.raw(sql, [id, idUsuario])
-
-        if (result)
-            return true
-        else
-            return false
+        const [resultado] = await knexConex.raw(
+            `UPDATE tbl_anuncio SET status = 'excluido'
+             WHERE id = ? AND id_usuario = ? AND status <> 'excluido'`,
+            [id, idUsuario]
+        )
+        return resultado.affectedRows
     } catch (error) {
         console.log(error)
         return false

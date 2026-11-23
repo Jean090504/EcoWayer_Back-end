@@ -88,7 +88,7 @@ function criarRouter(db) {
             if (!Number.isFinite(quantidade) || quantidade <= 0 || quantidade > 999999999 || !['kg', 't', 'un', 'l'].includes(unidade) || (unidade === 'un' && !Number.isInteger(quantidade))) falhar('Informe uma quantidade e unidade válidas.')
             const resultado = await db.transaction(async trx => {
                 const atual = await trx('tbl_anuncio').where({ id: Number(req.params.id), id_usuario: req.usuario.id }).forUpdate().first()
-                if (!atual) falhar('Anúncio não encontrado ou não pertence à sua conta.', 404)
+                if (!atual || atual.status === 'excluido') falhar('Anúncio não encontrado ou não pertence à sua conta.', 404)
                 const [{ data }] = await trx('tbl_anuncio').where({ id: atual.id }).select(trx.raw("DATE_FORMAT(data_publicacao, '%Y-%m-%d %H:%i:%s') AS data"))
                 const dados = { ...req.body, id_usuario: req.usuario.id, status: atual.status, data_publicacao: data }
                 const erro = controller.validarDados(dados)

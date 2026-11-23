@@ -188,6 +188,8 @@ const excluirAnuncio = async function (id, idUsuario) {
 
         let result = await anuncioDAO.deleteAnuncio(Number(id), idUsuario)
 
+        if (result === 0) return message.ERROR_NOT_FOUND
+
         if (result) {
             message.DEFAULT_MESSAGE.status = message.SUCCESS_DELETED_ITEM.status
             message.DEFAULT_MESSAGE.status_code = message.SUCCESS_DELETED_ITEM.status_code
