@@ -11,8 +11,8 @@ const knexConex = knex(knexConfig.development)
 
 // tbl_conversa.id_usuario = o interessado (comprador). O anunciante vem do anúncio (tbl_anuncio.id_usuario).
 const SQL_SELECT_CONVERSA = `SELECT c.id, c.id_anuncio, a.nome AS anuncio,
-        c.id_usuario AS id_interessado, ui.nome AS interessado,
-        a.id_usuario AS id_anunciante, ua.nome AS anunciante,
+        c.id_usuario AS id_interessado, ui.nome AS interessado, fi.url AS foto_interessado,
+        a.id_usuario AS id_anunciante, ua.nome AS anunciante, fa.url AS foto_anunciante,
         (SELECT m.id FROM tbl_mensagens m WHERE m.id_conversa = c.id ORDER BY m.envio DESC, m.id DESC LIMIT 1) AS ultimo_id,
         (SELECT m.texto FROM tbl_mensagens m WHERE m.id_conversa = c.id ORDER BY m.envio DESC, m.id DESC LIMIT 1) AS ultima_mensagem,
         (SELECT DATE_FORMAT(m.envio, '%Y-%m-%d %H:%i:%s') FROM tbl_mensagens m WHERE m.id_conversa = c.id ORDER BY m.envio DESC, m.id DESC LIMIT 1) AS ultimo_envio`
@@ -20,7 +20,9 @@ const SQL_SELECT_CONVERSA = `SELECT c.id, c.id_anuncio, a.nome AS anuncio,
 const SQL_FROM_CONVERSA = ` FROM tbl_conversa c
     INNER JOIN tbl_anuncio a ON a.id = c.id_anuncio
     INNER JOIN tbl_usuario ui ON ui.id = c.id_usuario
-    INNER JOIN tbl_usuario ua ON ua.id = a.id_usuario`
+    INNER JOIN tbl_usuario ua ON ua.id = a.id_usuario
+    LEFT JOIN tbl_imagem fi ON fi.id = ui.id_imagem
+    LEFT JOIN tbl_imagem fa ON fa.id = ua.id_imagem`
 
 const insertConversa = async function (conversa) {
     try {
