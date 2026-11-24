@@ -72,6 +72,17 @@ const inserirNovoUsuario = async function (usuario, contentType) {
                 return validar // 400
             } else {
                 let dados = tratarDados(usuario, true)
+                if (temValor(usuario.foto_url)) {
+                    try {
+                        if (typeof usuario.foto_url !== 'string') throw new Error()
+                        const foto = usuario.foto_url.trim()
+                        const url = new URL(foto)
+                        if (url.protocol !== 'https:' || url.username || url.password || foto.length > 255) throw new Error()
+                        dados.foto_url = foto
+                    } catch {
+                        return { status: false, status_code: 400, message: 'Informe uma URL HTTPS válida para a foto de perfil.' }
+                    }
+                }
 
                 let referencias = await validarReferencias(dados, true)
 
@@ -418,7 +429,7 @@ const validarReferencias = async function (dados, novoCadastro) {
 const buscarPadroes = async function (dados) {
     let status = await usuarioDAO.selectIdStatusPorNome(STATUS_PADRAO)
     let nivel = await usuarioDAO.selectIdNivelInicial()
-    let imagem = dados.id_imagem ? [{ id: dados.id_imagem }] : await usuarioDAO.selectIdImagemPadrao()
+    let imagem = dados.id_imagem || dados.foto_url ? null : await usuarioDAO.selectIdImagemPadrao()
 
     if (!status || status.length == 0) {
                 console.log('[USUARIO] Status "' + STATUS_PADRAO + '" não encontrado em tbl_status_usuario. Rode os scripts SQL da pasta SCRIPT/.')
@@ -426,14 +437,14 @@ const buscarPadroes = async function (dados) {
     } else if (!nivel || nivel.length == 0) {
                 console.log('[USUARIO] Nenhum nível em tbl_nivel_impacto. Rode os scripts SQL da pasta SCRIPT/.')
         return false
-    } else if (!imagem || imagem.length == 0) {
+    } else if (!dados.foto_url && !dados.id_imagem && !imagem?.length) {
                 console.log('[USUARIO] Imagem padrão (tipo "perfil") não encontrada em tbl_imagem. Rode os scripts SQL da pasta SCRIPT/.')
         return false
     } else {
         return {
             id_status_usuario: status[0].id,
             id_nivel_impacto: nivel[0].id,
-            id_imagem: imagem[0].id
+            id_imagem: dados.id_imagem ?? imagem?.[0]?.id ?? null
         }
     }
 }

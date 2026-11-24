@@ -37,10 +37,17 @@ const SQL_SELECT_USUARIO = `SELECT u.id, u.nome, u.cpf,
 const insertUsuario = async function (usuario) {
     try {
         let idUsuario = await knexConex.transaction(async function (trx) {
+            let idImagem = usuario.id_imagem
+            if (usuario.foto_url) {
+                const tipo = await trx('tbl_tipo_imagem').where({ tipo: 'perfil' }).first()
+                if (!tipo) throw new Error('Tipo de imagem de perfil não configurado.')
+                const [idFoto] = await trx('tbl_imagem').insert({ url: usuario.foto_url, id_tipo_imagem: tipo.id })
+                idImagem = idFoto
+            }
             let resultUsuario = await trx.raw(
                 `INSERT INTO tbl_usuario (nome, cpf, data_nascimento, id_imagem, id_genero, id_status_usuario, id_nivel_impacto)
                  VALUES (?, ?, ?, ?, ?, ?, ?);`,
-                [usuario.nome, usuario.cpf, usuario.data_nascimento, usuario.id_imagem, usuario.id_genero, usuario.id_status_usuario, usuario.id_nivel_impacto]
+                [usuario.nome, usuario.cpf, usuario.data_nascimento, idImagem, usuario.id_genero, usuario.id_status_usuario, usuario.id_nivel_impacto]
             )
             let id = resultUsuario[0].insertId
 
