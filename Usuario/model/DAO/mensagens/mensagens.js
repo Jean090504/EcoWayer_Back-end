@@ -9,7 +9,7 @@ const knexConfig = require('../../database_config_knex/knexFile.js')
 const knexConex = knex(knexConfig.development)
 
 const SQL_SELECT_MENSAGEM = `SELECT m.id, m.texto,
-        DATE_FORMAT(m.envio, '%Y-%m-%d %H:%i:%s') AS envio,
+        DATE_FORMAT(m.envio, '%Y-%m-%dT%H:%i:%sZ') AS envio,
         m.lida, m.id_conversa, m.id_remetente, u.nome AS remetente,
         c.id_anuncio, a.nome AS anuncio, c.id_usuario AS id_interessado, a.id_usuario AS id_anunciante
     FROM tbl_mensagens m
@@ -23,7 +23,7 @@ const insertMensagem = async function (mensagem) {
     try {
         let idMensagem = await knexConex.transaction(async function (trx) {
             let result = await trx.raw(
-                `INSERT INTO tbl_mensagens (texto, envio, lida, id_conversa, id_remetente) VALUES (?, NOW(), 0, ?, ?);`,
+                `INSERT INTO tbl_mensagens (texto, envio, lida, id_conversa, id_remetente) VALUES (?, UTC_TIMESTAMP(), 0, ?, ?);`,
                 [mensagem.texto, mensagem.id_conversa, mensagem.id_remetente]
             )
 

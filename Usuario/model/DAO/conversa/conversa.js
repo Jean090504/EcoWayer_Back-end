@@ -15,7 +15,7 @@ const SQL_SELECT_CONVERSA = `SELECT c.id, c.id_anuncio, a.nome AS anuncio,
         a.id_usuario AS id_anunciante, ua.nome AS anunciante, fa.url AS foto_anunciante,
         (SELECT m.id FROM tbl_mensagens m WHERE m.id_conversa = c.id ORDER BY m.envio DESC, m.id DESC LIMIT 1) AS ultimo_id,
         (SELECT m.texto FROM tbl_mensagens m WHERE m.id_conversa = c.id ORDER BY m.envio DESC, m.id DESC LIMIT 1) AS ultima_mensagem,
-        (SELECT DATE_FORMAT(m.envio, '%Y-%m-%d %H:%i:%s') FROM tbl_mensagens m WHERE m.id_conversa = c.id ORDER BY m.envio DESC, m.id DESC LIMIT 1) AS ultimo_envio`
+        (SELECT DATE_FORMAT(m.envio, '%Y-%m-%dT%H:%i:%sZ') FROM tbl_mensagens m WHERE m.id_conversa = c.id ORDER BY m.envio DESC, m.id DESC LIMIT 1) AS ultimo_envio`
 
 const SQL_FROM_CONVERSA = ` FROM tbl_conversa c
     INNER JOIN tbl_anuncio a ON a.id = c.id_anuncio
