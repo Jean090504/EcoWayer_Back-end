@@ -20,7 +20,7 @@ router.post('/', bodyParserJSON, async function (request, response) {
 
 // GET /        -> listar todas
 router.get('/', async function (request, response) {
-    let result = await controlerCategoria.listarCategoria()
+    let result = await controlerCategoria.listarCategoria(request.query.resumo === 'true')
 
     response.status(result.status_code)
     response.json(result)

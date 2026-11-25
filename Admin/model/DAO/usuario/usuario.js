@@ -63,6 +63,10 @@ const updateUsuario = async function (usuario) {
 // Os selects trazem os id_... só para o controller consultar as tabelas relacionadas.
 // O controller remove esses campos antes de responder.
 // DATE_FORMAT evita que a data volte como "2000-05-10T03:00:00.000Z" (problema de fuso).
+const updateStatusUsuario = async function (id, idStatus) {
+    return knexConex('tbl_usuario').where({ id }).update({ id_status_usuario: idStatus })
+}
+
 const selectByIdUsuario = async function (id) {
     try {
         let sql = `SELECT id, nome, cpf,
@@ -114,6 +118,7 @@ const deleteUsuario = async function (id) {
 module.exports = {
     insertUsuario,
     updateUsuario,
+    updateStatusUsuario,
     selectByIdUsuario,
     selectAllUsuario,
     deleteUsuario

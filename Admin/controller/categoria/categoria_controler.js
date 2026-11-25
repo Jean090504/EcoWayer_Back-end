@@ -149,16 +149,25 @@ const alterarStatusCategoria = async function (id, status, contentType) {
     }
 }
 
-const listarCategoria = async function () {
+const listarCategoria = async function (somenteResumo = false) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
-        let result = await categoriaDAO.selectAllCategoria()
+        let result = await categoriaDAO.selectAllCategoria(somenteResumo)
 
         if (result) {
             if (result.length > 0) {
-                for (let categoria of result) {
-                    await montarCategoria(categoria)
+                if (!somenteResumo) {
+                    const itens = await categoriaDAO.selectItensPorCategorias(result.map(categoria => categoria.id))
+                    if (!itens) return message.ERROR_INTERNAL_SEVER_MODEL
+
+                    const itensPorCategoria = new Map(result.map(categoria => [categoria.id, []]))
+                    for (const { id_categoria, ...item } of itens) {
+                        itensPorCategoria.get(id_categoria).push(item)
+                    }
+                    for (const categoria of result) {
+                        categoria.itens = itensPorCategoria.get(categoria.id)
+                    }
                 }
 
                 message.DEFAULT_MESSAGE.status = message.SUCCESS_RESPONSE.status
