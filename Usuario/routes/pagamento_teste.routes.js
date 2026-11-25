@@ -1,78 +1,98 @@
 const express = require('express')
-const crypto = require('node:crypto')
 const { MercadoPagoConfig, Preference, Payment } = require('mercadopago')
-
+const { criarServico, assinaturaValida } = require('../services/pedidosSite')
 const router = express.Router()
+const pedidosRouter = express.Router()
 
 function disponivel() {
     return process.env.NODE_ENV !== 'production' && process.env.MP_TEST_MODE === '1' && Boolean(process.env.MP_ACCESS_TOKEN)
 }
-
-function cliente() {
-    return new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN })
+function cliente() { return new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN, options: { timeout: 10000 } }) }
+function origemBackend() { return (process.env.MP_BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '') }
+async function exigirContaTeste() {
+    // APP_USR também pode ser token de teste: verifica a conta, não o prefixo.
+    const resposta = await fetch('https://api.mercadopago.com/users/me', {
+        headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` }, signal: AbortSignal.timeout(10000)
+    })
+    const conta = await resposta.json()
+    if (!resposta.ok || !conta.tags?.includes('test_user')) {
+        throw Object.assign(new Error('Configure as credenciais do vendedor de teste do Mercado Pago. Pagamentos reais estão bloqueados.'), { status: 503 })
+    }
 }
-
-function urlRetorno(resultado) {
-    const origem = (process.env.MP_BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '')
-    return `${origem}/mercadopago/retorno?resultado=${resultado}`
+function gateway() {
+    return {
+        async criarPreferencia(p) {
+            await exigirContaTeste()
+            const retorno = `${origemBackend()}/mercadopago/retorno?pedido=${p.id}`
+            return new Preference(cliente()).create({ body: {
+                items: [{ id: String(p.id_anuncio), title: p.titulo, quantity: 1, unit_price: Number(p.valor), currency_id: 'BRL' }],
+                external_reference: p.id,
+                back_urls: { success: retorno, failure: retorno, pending: retorno },
+                ...(process.env.MP_WEBHOOK_SECRET && /^https:\/\//.test(origemBackend()) ? { notification_url: `${origemBackend()}/mercadopago/webhook` } : {})
+            }, requestOptions: { idempotencyKey: p.id } })
+        },
+        consultarPagamento: id => new Payment(cliente()).get({ id }),
+        async buscarPagamentos(referencia) {
+            const resultado = await new Payment(cliente()).search({ options: { external_reference: referencia, sort: 'date_created', criteria: 'desc', limit: 100 } })
+            return Promise.all((resultado.results || []).map(p => new Payment(cliente()).get({ id: p.id })))
+        }
+    }
 }
-
-router.post('/teste/preferencia', async (req, res) => {
-    if (!disponivel()) return res.status(503).json({ message: 'Pagamentos de teste não estão disponíveis.' })
+function servico(req) { return criarServico(req.app.locals.dbPublicacao, gateway(), process.env.JWT_SECRET) }
+function rota(handler) {
+    return async (req, res) => {
+        res.set('Cache-Control', 'no-store')
+        if (!disponivel()) return res.status(503).json({ message: 'Pedidos de teste não estão disponíveis.' })
+        try { await handler(req, res, servico(req)) } catch (e) {
+            if (!e.status) console.error('Falha no pedido de teste:', e.code || e.name)
+            res.status(e.status || 502).json({ message: e.status ? e.message : 'Não foi possível atualizar o pedido. Tente novamente.' })
+        }
+    }
+}
+router.post('/teste/preferencia', rota(async (req, res, s) => {
     const id = Number(req.body?.id_anuncio)
     if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ message: 'Anúncio inválido.' })
-    try {
-        const anuncio = await req.app.locals.dbPublicacao('tbl_anuncio as a')
-            .join('tbl_modalidade as m', 'm.id', 'a.id_modalidade')
-            .where('a.id', id)
-            .select('a.id', 'a.nome', 'a.preco', 'a.status', 'a.id_usuario', 'm.nome as modalidade')
-            .first()
-        if (!anuncio || anuncio.status !== 'ativo') return res.status(404).json({ message: 'Anúncio indisponível.' })
-        if (String(anuncio.modalidade).toLowerCase() !== 'venda') return res.status(400).json({ message: 'Este anúncio não é de venda.' })
-        if (Number(anuncio.id_usuario) === Number(req.usuario.id)) return res.status(403).json({ message: 'Você não pode pagar pelo próprio anúncio.' })
-        const preco = Number(anuncio.preco)
-        if (!Number.isFinite(preco) || preco <= 0 || Math.round(preco * 100) / 100 !== preco) {
-            return res.status(400).json({ message: 'Preço do anúncio inválido para pagamento.' })
-        }
-        const preferencia = await new Preference(cliente()).create({
-            body: {
-                items: [{ id: String(anuncio.id), title: String(anuncio.nome).slice(0, 256), quantity: 1, unit_price: preco, currency_id: 'BRL' }],
-                external_reference: `ecowayer-teste-${anuncio.id}-${req.usuario.id}-${crypto.randomUUID()}`,
-                back_urls: {
-                    success: urlRetorno('sucesso'),
-                    failure: urlRetorno('falha'),
-                    pending: urlRetorno('pendente')
-                }
-            }
-        })
-        if (!/^https:\/\/(?:www\.)?mercadopago\.com\.br\//.test(preferencia.init_point || '')) {
-            throw new Error('URL de checkout inesperada.')
-        }
-        return res.json({ response: { init_point: preferencia.init_point } })
-    } catch (erro) {
-        console.error('Falha ao criar preferência Mercado Pago:', erro.message)
-        return res.status(502).json({ message: 'Não foi possível abrir o pagamento de teste. Tente novamente.' })
-    }
+    res.json({ response: await s.iniciar(id, req.usuario.id) })
+}))
+pedidosRouter.get('/', rota(async (req, res, s) => {
+    const pedidos = await req.app.locals.dbPublicacao('tbl_pedido_site')
+        .where('id_comprador', req.usuario.id).orWhere('id_vendedor', req.usuario.id).orderBy('criado_em', 'desc').limit(100)
+    res.json({ pedidos: pedidos.map(p => s.publico(p, req.usuario.id)) })
+}))
+pedidosRouter.post('/:id/atualizar', rota(async (req, res, s) => {
+    const p = await s.sincronizar(req.params.id, req.usuario.id)
+    res.json({ pedido: s.publico(p, req.usuario.id) })
+}))
+pedidosRouter.get('/:id/conversa', rota(async (req, res, s) => {
+    const p = await s.obter(req.params.id, req.usuario.id)
+    const conversa = await req.app.locals.dbPublicacao('tbl_conversa')
+        .where({ id_anuncio: p.id_anuncio, id_usuario: p.id_comprador }).orderBy('id').first('id')
+    if (!conversa) return res.status(404).json({ message: 'Conversa não encontrada.' })
+    res.json({ id_conversa: conversa.id })
+}))
+pedidosRouter.post('/:id/codigo', rota(async (req, res, s) => res.json(await s.codigo(req.params.id, req.usuario.id))))
+pedidosRouter.post('/:id/confirmar', rota(async (req, res, s) => {
+    res.json({ pedido: s.publico(await s.confirmar(req.params.id, req.usuario.id, req.body?.codigo), req.usuario.id) })
+}))
+pedidosRouter.post('/:id/problema', rota(async (req, res, s) => {
+    await s.problema(req.params.id, req.usuario.id, req.body?.motivo)
+    res.json({ message: 'Problema registrado. Entrega bloqueada; nenhum reembolso automático foi realizado.' })
+}))
+const webhook = rota(async (req, res, s) => {
+    if (!assinaturaValida(req, process.env.MP_WEBHOOK_SECRET)) return res.status(401).json({ message: 'Assinatura inválida.' })
+    if ((req.body?.type || req.query.type) !== 'payment') return res.sendStatus(200)
+    const id = String(req.query['data.id'])
+    const pagamento = await gateway().consultarPagamento(id)
+    const p = await req.app.locals.dbPublicacao('tbl_pedido_site').where({ id: pagamento.external_reference || '' }).first()
+    if (p) await s.sincronizarInterno(p.id, id)
+    res.sendStatus(200)
 })
-
-async function retorno(req, res) {
-    res.set('Cache-Control', 'no-store')
-    let mensagem = 'O pagamento não foi confirmado. Consulte o painel do Mercado Pago.'
-    const id = String(req.query.collection_id || req.query.payment_id || '')
-    if (disponivel() && /^\d{1,20}$/.test(id)) {
-        try {
-            const pagamento = await new Payment(cliente()).get({ id })
-            if (pagamento.status === 'approved' && String(pagamento.external_reference || '').startsWith('ecowayer-teste-')) {
-                mensagem = 'Pagamento de teste aprovado pelo Mercado Pago. Nenhuma entrega ou repasse foi registrado no EcoWayer.'
-            } else if (pagamento.status === 'pending' || pagamento.status === 'in_process') {
-                mensagem = 'Pagamento de teste pendente. Consulte o painel do Mercado Pago.'
-            }
-        } catch (erro) {
-            console.error('Falha ao consultar pagamento Mercado Pago:', erro.message)
-        }
-    }
-    const front = process.env.MP_FRONTEND_URL || 'http://localhost:5173'
-    res.type('html').send(`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pagamento de teste • EcoWayer</title><body style="font:16px system-ui;background:#faf8ff;color:#191c30;min-height:100vh;display:grid;place-items:center;margin:0;padding:20px;box-sizing:border-box"><main style="max-width:440px;background:white;padding:32px;border-radius:24px;box-shadow:0 8px 28px #231f3514"><h1 style="font-size:24px">Resultado do teste</h1><p>${mensagem}</p><a href="${front}" style="color:#724bc2;font-weight:600">Voltar ao EcoWayer</a></main></body></html>`)
+function retorno(req, res) {
+    // Retornar ao site não aprova o pedido. A tela consulta o backend.
+    const url = new URL(process.env.MP_FRONTEND_URL || 'http://localhost:5173')
+    url.searchParams.set('tela', 'pedidos')
+    const id = String(req.query.pedido || '')
+    if (/^[a-f0-9-]{36}$/.test(id)) url.searchParams.set('pedido', id)
+    res.set('Cache-Control', 'no-store').redirect(303, url.toString())
 }
-
-module.exports = { router, retorno }
+module.exports = { router, pedidosRouter, retorno, webhook }

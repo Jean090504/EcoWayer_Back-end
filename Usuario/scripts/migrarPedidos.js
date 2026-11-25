@@ -1,0 +1,5 @@
+const db = require('knex')(require('../model/database_config_knex/knexFile').development)
+require('../db/migrations/20261125_pedido_site').up(db)
+    .then(() => console.log('Estrutura dos pedidos pronta; dados existentes preservados.'))
+    .catch(e => { console.error('Falha na migração:', e.code || e.name); process.exitCode = 1 })
+    .finally(() => db.destroy())

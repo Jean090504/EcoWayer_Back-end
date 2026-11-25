@@ -1,0 +1,30 @@
+// Aditiva: pedidos de teste independentes de QR e de repasses financeiros.
+exports.up = async function (db) {
+    if (await db.schema.hasTable('tbl_pedido_site')) return
+    await db.schema.createTable('tbl_pedido_site', t => {
+        t.string('id', 36).primary()
+        t.integer('id_anuncio').notNullable().unique().references('id').inTable('tbl_anuncio')
+        t.integer('id_comprador').notNullable().references('id').inTable('tbl_usuario')
+        t.integer('id_vendedor').notNullable().references('id').inTable('tbl_usuario')
+        t.string('titulo', 100).notNullable()
+        t.decimal('valor', 10, 2).notNullable()
+        t.string('status_pagamento', 30).notNullable().defaultTo('pending')
+        t.string('status_entrega', 30).notNullable().defaultTo('aguardando_pagamento')
+        t.string('preferencia_id', 255).nullable()
+        t.text('checkout_url').nullable()
+        t.string('pagamento_id', 50).nullable().unique()
+        t.dateTime('pagamento_atualizado_em').nullable()
+        t.integer('id_pagamento').nullable().references('id').inTable('tbl_pagamento')
+        t.integer('id_entrega').nullable().references('id').inTable('tbl_entrega')
+        t.string('codigo_hash', 64).nullable()
+        t.dateTime('codigo_expira_em').nullable()
+        t.integer('codigo_tentativas').notNullable().defaultTo(0)
+        t.text('problema').nullable()
+        t.dateTime('problema_em').nullable()
+        t.dateTime('entregue_em').nullable()
+        t.integer('confirmado_por').nullable()
+        t.dateTime('criado_em').notNullable().defaultTo(db.fn.now())
+        t.index(['id_comprador', 'criado_em'])
+        t.index(['id_vendedor', 'criado_em'])
+    })
+}

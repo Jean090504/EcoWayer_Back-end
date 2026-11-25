@@ -7,6 +7,7 @@
 
 const bcrypt = require('bcrypt') // se o projeto usa bcryptjs, troque só o nome aqui (a API é a mesma)
 const crypto = require('crypto')
+const { OAuth2Client } = require('google-auth-library')
 const { validarSenha } = require('../modulo/validacaoSenha.js')
 const configMessages = require('../modulo/configMessages.js')
 const usuarioDAO = require('../../model/DAO/usuario/usuario.js')
@@ -294,6 +295,42 @@ const loginUsuario = async function (email, senha) {
     }
 }
 
+const loginGoogle = async function (credential) {
+    try {
+        if (typeof credential !== 'string' || credential.length < 20 || credential.length > 10000) {
+            return { status: false, status_code: 400, message: 'Credencial do Google inválida.' }
+        }
+        const clientId = String(process.env.GOOGLE_CLIENT_ID || '').trim()
+        if (!clientId) return { status: false, status_code: 503, message: 'Login com Google não está configurado.' }
+
+        const client = new OAuth2Client(clientId)
+        const ticket = await client.verifyIdToken({ idToken: credential, audience: clientId })
+        const payload = ticket.getPayload()
+        const email = String(payload?.email || '').trim().toLowerCase()
+        if (!email || payload?.email_verified !== true) {
+            return { status: false, status_code: 401, message: 'A conta Google não possui e-mail verificado.' }
+        }
+
+        const encontrado = (await usuarioDAO.selectLoginUsuario(email))?.[0]
+        if (!encontrado) {
+            return { status: false, status_code: 404, message: 'Este e-mail Google ainda não possui cadastro. Crie sua conta com seus dados completos primeiro.' }
+        }
+        if (!process.env.JWT_SECRET) return { status: false, status_code: 500, message: 'Autenticação indisponível.' }
+
+        const token = require('../../model/sessaoUsuario.js').emitirToken(encontrado, process.env.JWT_SECRET)
+        delete encontrado.senha
+        return {
+            status: true,
+            status_code: 200,
+            message: 'Login com Google realizado com sucesso.',
+            response: { token, usuario: encontrado }
+        }
+    } catch (error) {
+        console.error('Falha na validação do login Google:', error.message)
+        return { status: false, status_code: 401, message: 'Não foi possível validar sua conta Google.' }
+    }
+}
+
 // "Excluir" = desativar a conta (status 'desativado'); o histórico do usuário é preservado.
 const excluirUsuario = async function (id) {
     let message = JSON.parse(JSON.stringify(configMessages))
@@ -505,6 +542,7 @@ module.exports = {
     listarUsuario,
     buscarUsuario,
     loginUsuario,
+    loginGoogle,
     excluirUsuario,
     validarDados
 }

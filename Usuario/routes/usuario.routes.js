@@ -34,6 +34,21 @@ router.post('/login', loginLimiter, bodyParserJSON, async function (request, res
     response.status(result.status_code).json(result)
 })
 
+router.post('/login/google', loginLimiter, bodyParserJSON, async function (request, response) {
+    let result = await controlerUsuario.loginGoogle(request.body?.credential)
+    if (result.status_code === 200 && result.response?.token) {
+        response.cookie('ecowayer_token', result.response.token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 60 * 60 * 1000,
+            path: '/'
+        })
+        delete result.response.token
+    }
+    response.status(result.status_code).json(result)
+})
+
 router.post('/logout', async function (request, response) {
     response.clearCookie('ecowayer_token', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', path: '/' })
     try {

@@ -36,7 +36,9 @@ const dbPublicacao = require('knex')(require('./model/database_config_knex/knexF
 app.locals.dbPublicacao = dbPublicacao
 const pagamentoTeste = require('./routes/pagamento_teste.routes.js')
 app.use('/meraki/ecowayer/user/pagamento', pagamentoTeste.router)
+app.use('/meraki/ecowayer/user/pedidos', pagamentoTeste.pedidosRouter)
 app.get('/mercadopago/retorno', pagamentoTeste.retorno)
+app.post('/mercadopago/webhook', rateLimit({ windowMs: 60000, limit: 120 }), pagamentoTeste.webhook)
 app.use('/meraki/ecowayer/user/usuario', require('./routes/perfil.routes.js').criarRouter(dbPublicacao))
 app.use('/uploads/anuncios', express.static(uploadDir, {
     dotfiles: 'deny',

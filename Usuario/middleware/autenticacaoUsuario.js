@@ -22,6 +22,7 @@ function ePublica(request) {
     if (request.path === '/usuario' && request.method === 'POST') return true
     if (request.path === '/endereco' && request.method === 'POST') return true
     if (request.path === '/usuario/login' && request.method === 'POST') return true
+    if (request.path === '/usuario/login/google' && request.method === 'POST') return true
     if (request.path === '/usuario/logout' && request.method === 'POST') return true
     return request.method === 'GET' && publicPrefixes.some((prefix) => request.path === prefix || request.path.startsWith(`${prefix}/`))
 }
