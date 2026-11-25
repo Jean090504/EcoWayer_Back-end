@@ -33,6 +33,10 @@ app.use('/meraki/ecowayer/user', autenticacaoUsuario, require('./middleware/perm
 
 const { criarRouter, uploadDir } = require('./routes/publicacao_anuncio.routes.js')
 const dbPublicacao = require('knex')(require('./model/database_config_knex/knexFile.js').development)
+app.locals.dbPublicacao = dbPublicacao
+const pagamentoTeste = require('./routes/pagamento_teste.routes.js')
+app.use('/meraki/ecowayer/user/pagamento', pagamentoTeste.router)
+app.get('/mercadopago/retorno', pagamentoTeste.retorno)
 app.use('/meraki/ecowayer/user/usuario', require('./routes/perfil.routes.js').criarRouter(dbPublicacao))
 app.use('/uploads/anuncios', express.static(uploadDir, {
     dotfiles: 'deny',
