@@ -22,7 +22,7 @@ router.post('/', bodyParserJSON, async function (request, response) {
 
 // GET /  -> lista todos os anúncios
 router.get('/', async function (request, response) {
-    let result = await controllerAnuncio.listarAnuncios()
+    let result = await controllerAnuncio.listarAnuncios(request.usuario?.id)
 
     response.status(result.status_code)
     response.json(result)
@@ -30,7 +30,7 @@ router.get('/', async function (request, response) {
 
 // GET /:id  -> busca um anúncio pelo id
 router.get('/:id', async function (request, response) {
-    let result = await controllerAnuncio.buscarAnuncio(request.params.id)
+    let result = await controllerAnuncio.buscarAnuncio(request.params.id, request.usuario?.id)
 
     response.status(result.status_code)
     response.json(result)

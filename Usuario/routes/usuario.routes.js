@@ -25,7 +25,7 @@ router.post('/login', loginLimiter, bodyParserJSON, async function (request, res
         response.cookie('ecowayer_token', result.response.token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             maxAge: 60 * 60 * 1000,
             path: '/'
         })
@@ -35,7 +35,7 @@ router.post('/login', loginLimiter, bodyParserJSON, async function (request, res
 })
 
 router.post('/logout', async function (request, response) {
-    response.clearCookie('ecowayer_token', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/' })
+    response.clearCookie('ecowayer_token', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', path: '/' })
     try {
         await revogarSessao(verificarToken(lerToken(request), process.env.JWT_SECRET))
         response.status(204).end()

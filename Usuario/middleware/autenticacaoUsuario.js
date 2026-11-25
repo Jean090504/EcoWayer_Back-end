@@ -26,8 +26,25 @@ function ePublica(request) {
     return request.method === 'GET' && publicPrefixes.some((prefix) => request.path === prefix || request.path.startsWith(`${prefix}/`))
 }
 
+async function anexarSessaoOpcional(request) {
+    const token = lerToken(request)
+    const segredo = process.env.JWT_SECRET
+    const usuario = verificarToken(token, segredo)
+    if (usuario?.tipo !== 'usuario') return
+    try {
+        if (await consultarSessao(usuario, segredo)) request.usuario = usuario
+    } catch (erro) {
+        console.error('Falha ao consultar sessão opcional:', erro.code || erro.name)
+    }
+}
+
 module.exports = async function autenticacaoUsuario(request, response, next) {
-    if (ePublica(request)) return next()
+    if (ePublica(request)) {
+        if (request.method === 'GET' && (request.path === '/anuncio' || request.path.startsWith('/anuncio/'))) {
+            await anexarSessaoOpcional(request)
+        }
+        return next()
+    }
 
     const token = lerToken(request)
     const segredo = process.env.JWT_SECRET

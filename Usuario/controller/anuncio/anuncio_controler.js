@@ -115,11 +115,11 @@ const atualizarAnuncio = async function (id, anuncio, contentType, idUsuario) {
     }
 }
 
-const listarAnuncios = async function () {
+const listarAnuncios = async function (idUsuario) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
-        let result = await anuncioDAO.selectAllAnuncios()
+        let result = await anuncioDAO.selectAllAnuncios(idUsuario)
 
         if (result && result.length > 0) {
             message.DEFAULT_MESSAGE.status = message.SUCCESS_RESPONSE.status
@@ -139,7 +139,7 @@ const listarAnuncios = async function () {
     }
 }
 
-const buscarAnuncio = async function (id) {
+const buscarAnuncio = async function (id, idUsuario) {
     let message = JSON.parse(JSON.stringify(configMessages))
 
     try {
@@ -148,7 +148,7 @@ const buscarAnuncio = async function (id) {
             return message.ERROR_BAD_REQUEST // 400
         }
 
-        let result = await anuncioDAO.selectAnuncioById(Number(id))
+        let result = await anuncioDAO.selectAnuncioById(Number(id), idUsuario)
 
         if (result && result.length > 0) {
             message.DEFAULT_MESSAGE.status = message.SUCCESS_RESPONSE.status

@@ -75,15 +75,15 @@ const updateAnuncio = async function (anuncio, idUsuario) {
     }
 }
 
-const selectAllAnuncios = async function () {
+const selectAllAnuncios = async function (idUsuario) {
     try {
         let sql = `SELECT a.*,
     (SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = a.id ORDER BY ia.ordem IS NULL, ia.ordem, ia.id LIMIT 1) AS imagem,
     (SELECT c.nome FROM tbl_categoria c WHERE c.id = a.id_categoria) AS categoria,
     (SELECT m.nome FROM tbl_modalidade m WHERE m.id = a.id_modalidade) AS modalidade_nome
-    FROM tbl_anuncio a WHERE a.status <> 'excluido' ORDER BY a.id`
+    FROM tbl_anuncio a WHERE ${idUsuario ? "(a.status = 'ativo' OR (a.id_usuario = ? AND a.status <> 'excluido'))" : "a.status = 'ativo'"} ORDER BY a.id`
 
-        let result = await knexConex.raw(sql)
+        let result = await knexConex.raw(sql, idUsuario ? [idUsuario] : [])
 
         if (result)
             return result[0] // array de anúncios
@@ -95,15 +95,15 @@ const selectAllAnuncios = async function () {
     }
 }
 
-const selectAnuncioById = async function (id) {
+const selectAnuncioById = async function (id, idUsuario) {
     try {
         let sql = `SELECT a.*,
     (SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = a.id ORDER BY ia.ordem IS NULL, ia.ordem, ia.id LIMIT 1) AS imagem,
     (SELECT c.nome FROM tbl_categoria c WHERE c.id = a.id_categoria) AS categoria,
     (SELECT m.nome FROM tbl_modalidade m WHERE m.id = a.id_modalidade) AS modalidade_nome
-    FROM tbl_anuncio a WHERE a.id = ? AND a.status <> 'excluido'`
+    FROM tbl_anuncio a WHERE a.id = ? AND (a.status = 'ativo' OR (a.id_usuario = ? AND a.status <> 'excluido'))`
 
-        let result = await knexConex.raw(sql, [id])
+        let result = await knexConex.raw(sql, [id, idUsuario || 0])
 
         if (!result) return false
         if (result[0].length) {
