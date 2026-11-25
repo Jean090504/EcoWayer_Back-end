@@ -3,12 +3,16 @@ const mysql = require('mysql2/promise');
 const dbPassword = process.env.DB_PASSWORD;
 if (!dbPassword) throw new Error('DB_PASSWORD precisa estar definida no ambiente do backend Admin.');
 
+const dbHost = process.env.DB_HOST || '127.0.0.1';
+const usarTLS = dbHost.toLowerCase().endsWith('.mysql.database.azure.com');
+
 const baseConfig = {
-  host: process.env.DB_HOST || '127.0.0.1',
+  host: dbHost,
   user: process.env.DB_USER || 'root',
   database: process.env.DB_NAME || 'ecowayer_db',
   port: Number(process.env.DB_PORT || 3306),
   charset: 'utf8mb4',
+  ...(usarTLS && { ssl: { rejectUnauthorized: true, verifyIdentity: true } }),
 };
 
 let configCache = null; // evita testar as senhas a cada nova conexão do pool

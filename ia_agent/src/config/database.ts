@@ -16,6 +16,9 @@ export class Database {
         user: env.DB_USER,
         password: env.DB_PASS,
         database: env.DB_NAME,
+        ...(env.DB_HOST.toLowerCase().endsWith('.mysql.database.azure.com') && {
+          ssl: { rejectUnauthorized: true, verifyIdentity: true }
+        }),
         waitForConnections: true,
         connectionLimit: env.DB_CONNECTION_LIMIT,
         queueLimit: 0,
