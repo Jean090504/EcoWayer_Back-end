@@ -213,10 +213,10 @@ const selectIdStatusPorNome = async function (status) {
     }
 }
 
-// Nível inicial = o de menor número (nível 1)
+// O cadastro sempre começa no nível número 1, independente da ordem dos IDs.
 const selectIdNivelInicial = async function () {
     try {
-        let result = await knexConex.raw(`SELECT id FROM tbl_nivel_impacto ORDER BY numero ASC LIMIT 1;`)
+        let result = await knexConex.raw(`SELECT id FROM tbl_nivel_impacto WHERE numero = 1 ORDER BY id ASC LIMIT 1;`)
 
         return Array.isArray(result) ? result[0] : false
     } catch (error) {
