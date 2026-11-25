@@ -6,7 +6,7 @@ A aplicação **EcoWayer TCC Testes** foi criada no [painel do Mercado Pago](htt
 
 1. No `.env` de `Usuario`, defina `MP_ACCESS_TOKEN` com o **Access Token de teste** da aplicação, `MP_TEST_MODE=1`, `MP_BACKEND_URL=http://localhost:3000` e `MP_FRONTEND_URL=http://localhost:5173`.
 2. No `.env` de `Front_Usuario`, defina `VITE_MP_TEST_MODE=1` e `VITE_API_URL=http://localhost:3000`.
-3. Na pasta principal do TCC, execute `./iniciar-ecowayer.ps1`. Os cinco serviços permanecerão rodando em segundo plano. Use `./parar-ecowayer.ps1` para encerrá-los.
+3. Inicie cada serviço necessário em seu próprio terminal, conforme [o guia de configuração](../CONFIGURACAO-AMBIENTE-LOCAL.md#iniciar-um-serviço-por-vez). Para o checkout web, execute pelo menos o backend Usuario (`node app.js`) e o frontend Usuario (`npm run dev`).
 4. Entre no EcoWayer em `http://localhost:5173` com um usuário comprador, abra um anúncio de venda ativo de outro usuário e clique em **Testar pagamento com Mercado Pago**.
 5. No checkout, entre com a [conta de teste de comprador](https://www.mercadopago.com.br/developers/panel/app/3328498013279371/test-users) gerada pela aplicação. Consulte os [cartões de teste](https://www.mercadopago.com.br/developers/panel/app/3328498013279371/test-cards) no painel.
 
