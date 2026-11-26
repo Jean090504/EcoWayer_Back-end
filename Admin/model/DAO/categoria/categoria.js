@@ -90,9 +90,15 @@ const selectByIdCategoria = async function (id) {
     }
 }
 
-const selectAllCategoria = async function () {
+const selectAllCategoria = async function (somenteResumo = false) {
     try {
-        let sql = `SELECT c.id, c.nome, c.pontos, c.img, c.status, c.id_tipo_categoria, t.nome AS tipo_categoria
+        const contagem = somenteResumo
+            ? `, (SELECT COUNT(*)
+                  FROM tbl_categoria_item AS ci
+                  INNER JOIN tbl_item AS i ON i.id = ci.id_item
+                  WHERE ci.id_categoria = c.id) AS quantidade_itens`
+            : ''
+        let sql = `SELECT c.id, c.nome, c.pontos, c.img, c.status, c.id_tipo_categoria, t.nome AS tipo_categoria${contagem}
                    FROM tbl_categoria AS c
                    INNER JOIN tbl_tipo_categoria AS t ON t.id = c.id_tipo_categoria
                    ORDER BY c.nome;`
@@ -115,6 +121,20 @@ const selectItensByCategoria = async function (idCategoria) {
         let result = await knexConex.raw(sql, [idCategoria])
 
         return Array.isArray(result) ? result[0] : false
+    } catch (error) {
+        return false
+    }
+}
+
+const selectItensPorCategorias = async function (idsCategorias) {
+    try {
+        const result = await knexConex('tbl_categoria_item as ci')
+            .innerJoin('tbl_item as i', 'i.id', 'ci.id_item')
+            .select('ci.id_categoria', 'i.id', 'i.nome', 'i.descricao', 'i.pontos_base', 'i.status', 'i.img')
+            .whereIn('ci.id_categoria', idsCategorias)
+            .orderBy('i.nome')
+
+        return result
     } catch (error) {
         return false
     }
@@ -200,6 +220,7 @@ module.exports = {
     selectByIdCategoria,
     selectAllCategoria,
     selectItensByCategoria,
+    selectItensPorCategorias,
     selectItensExistentes,
     deleteCategoria,
     updateStatusCategoria

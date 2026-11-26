@@ -281,9 +281,13 @@ const loginUsuario = async function (email, senha) {
         if (!encontrado || !(await bcrypt.compare(senha, encontrado.senha))) {
             return { status: false, status_code: 401, message: 'E-mail ou senha inválidos.' }
         }
+        if (String(encontrado.status || '').trim().toLowerCase() !== 'ativo') {
+            return { status: false, status_code: 403, message: 'Esta conta esta desativada. Entre em contato com o suporte para reativa-la.' }
+        }
         if (!process.env.JWT_SECRET) return message.ERROR_INTERNAL_CONTROLER
         const token = require('../../model/sessaoUsuario.js').emitirToken(encontrado, process.env.JWT_SECRET)
         delete encontrado.senha
+        delete encontrado.status
         message.DEFAULT_MESSAGE.status = true
         message.DEFAULT_MESSAGE.status_code = 200
         message.DEFAULT_MESSAGE.message = 'Login realizado com sucesso.'

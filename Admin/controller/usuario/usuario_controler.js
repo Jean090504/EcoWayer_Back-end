@@ -8,6 +8,34 @@
 const configMessages = require('../modulo/configMessages.js')
 const usuarioDAO = require('../../model/DAO/usuario/usuario.js')
 
+const alterarStatusUsuario = async function (id, status) {
+    const message = JSON.parse(JSON.stringify(configMessages))
+    if (idInvalido(id) || !['ativo', 'desativado'].includes(status)) {
+        return { ...message.ERROR_BAD_REQUEST, message: 'Informe um usuário válido e um status ativo ou desativado.' }
+    }
+
+    try {
+        const catalogo = await controlerStatusUsuario.listarStatusUsuario()
+        if (!catalogo.status) return catalogo
+
+        const statusUsuario = catalogo.response.status_usuario.find(item => item.status === status)
+        if (!statusUsuario) {
+            return { ...message.ERROR_NOT_FOUND, message: `Status de usuário “${status}” indisponível.` }
+        }
+
+        const alterados = await usuarioDAO.updateStatusUsuario(Number(id), statusUsuario.id)
+        if (!alterados) {
+            const usuarios = await usuarioDAO.selectByIdUsuario(Number(id))
+            if (!usuarios) return message.ERROR_INTERNAL_SEVER_MODEL
+            if (!usuarios.length) return message.ERROR_NOT_FOUND
+        }
+
+        return { status: true, status_code: 200, response: { id: Number(id), status_usuario: statusUsuario } }
+    } catch (error) {
+        return message.ERROR_INTERNAL_CONTROLER
+    }
+}
+
 // Controllers que já existem e fornecem os dados das chaves estrangeiras.
 // CONFIRME os caminhos e os nomes das funções exportadas (module.exports) de cada um.
 const controlerGenero = require('../genero/genero_controler.js')                    // buscarGenero
@@ -335,6 +363,7 @@ const validarDados = async function (usuario) {
 module.exports = {
     inserirNovoUsuario,
     atualizarUsuario,
+    alterarStatusUsuario,
     listarUsuario,
     buscarUsuario,
     excluirUsuario,

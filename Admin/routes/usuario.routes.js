@@ -42,6 +42,11 @@ router.put('/:id', bodyParserJSON, async function (request, response) {
     response.json(result)
 })
 
+router.patch('/:id/status', bodyParserJSON, async function (request, response) {
+    const result = await controlerUsuario.alterarStatusUsuario(request.params.id, request.body?.status)
+    response.status(result.status_code).json(result)
+})
+
 // DELETE /:id  -> excluir
 router.delete('/:id', async function (request, response) {
     let result = await controlerUsuario.excluirUsuario(request.params.id)
