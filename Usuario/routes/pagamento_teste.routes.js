@@ -6,7 +6,9 @@ const pedidosRouter = express.Router()
 
 function disponivel() {
     if (!process.env.MP_ACCESS_TOKEN) return false
-    if (process.env.MP_TEST_MODE === '1') return process.env.NODE_ENV !== 'production'
+    if (process.env.MP_TEST_MODE === '1') return process.env.NODE_ENV !== 'production' ||
+        (process.env.MP_STAGING_ENABLED === '1' && /^https:\/\//.test(process.env.MP_BACKEND_URL || '') &&
+            /^https:\/\//.test(process.env.MP_FRONTEND_URL || ''))
     return process.env.NODE_ENV === 'production' && process.env.MP_LIVE_ENABLED === '1' &&
         process.env.MP_SETTLEMENT_MODE === 'platform' &&
         Boolean(process.env.MP_WEBHOOK_SECRET) && /^https:\/\//.test(process.env.MP_BACKEND_URL || '') &&
@@ -48,7 +50,7 @@ function servico(req) { return criarServico(req.app.locals.dbPublicacao, gateway
 function rota(handler) {
     return async (req, res) => {
         res.set('Cache-Control', 'no-store')
-        if (!disponivel()) return res.status(503).json({ message: 'Pedidos de teste não estão disponíveis.' })
+        if (!disponivel()) return res.status(503).json({ message: 'Checkout indisponível neste ambiente.' })
         try { await handler(req, res, servico(req)) } catch (e) {
             if (!e.status) console.error('Falha no pedido:', e.code || e.name)
             res.status(e.status || 502).json({ message: e.status ? e.message : 'Não foi possível atualizar o pedido. Tente novamente.' })

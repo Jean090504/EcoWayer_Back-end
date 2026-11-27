@@ -5,7 +5,7 @@ const { criarServico, validarPagamento, assinaturaValida } = require('../service
 const { disponivel } = require('../routes/pagamento_teste.routes')
 
 test('pagamentos reais exigem ativação, recebedora definida e webhook HTTPS', () => {
-    const nomes = ['NODE_ENV', 'MP_TEST_MODE', 'MP_LIVE_ENABLED', 'MP_SETTLEMENT_MODE', 'MP_ACCESS_TOKEN', 'MP_WEBHOOK_SECRET', 'MP_BACKEND_URL', 'MP_FRONTEND_URL']
+    const nomes = ['NODE_ENV', 'MP_TEST_MODE', 'MP_STAGING_ENABLED', 'MP_LIVE_ENABLED', 'MP_SETTLEMENT_MODE', 'MP_ACCESS_TOKEN', 'MP_WEBHOOK_SECRET', 'MP_BACKEND_URL', 'MP_FRONTEND_URL']
     const anteriores = Object.fromEntries(nomes.map(nome => [nome, process.env[nome]]))
     try {
         Object.assign(process.env, {
@@ -20,6 +20,12 @@ test('pagamentos reais exigem ativação, recebedora definida e webhook HTTPS', 
         assert.equal(disponivel(), false)
         process.env.NODE_ENV = 'development'
         process.env.MP_TEST_MODE = '1'
+        assert.equal(disponivel(), true)
+        process.env.NODE_ENV = 'production'
+        assert.equal(disponivel(), false)
+        process.env.MP_STAGING_ENABLED = '1'
+        assert.equal(disponivel(), false)
+        process.env.MP_BACKEND_URL = 'https://api.example.com'
         assert.equal(disponivel(), true)
     } finally {
         for (const nome of nomes) {
