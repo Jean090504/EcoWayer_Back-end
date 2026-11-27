@@ -42,18 +42,22 @@ const buscarComCache = async function (cache, tipo, funcaoBuscar, id) {
 
 // Troca id_ia e id_usuario pelos objetos correspondentes e anexa as listas de anúncios e mensagens
 const montarAlerta = async function (alerta, cache = {}) {
-    alerta.ia = alerta.id_ia == null
-        ? null
-        : await buscarComCache(cache, 'ia', controlerIa.buscarIA, alerta.id_ia)
-    alerta.usuario = await buscarComCache(cache, 'usuario', controlerUsuario.buscarUsuario, alerta.id_usuario)
+    const [ia, usuario] = await Promise.all([
+        alerta.id_ia == null ? null : buscarComCache(cache, 'ia', controlerIa.buscarIA, alerta.id_ia),
+        buscarComCache(cache, 'usuario', controlerUsuario.buscarUsuario, alerta.id_usuario)
+    ])
+    alerta.ia = ia
+    alerta.usuario = usuario
 
     delete alerta.id_ia
     delete alerta.id_usuario
 
     // alerta.anuncio = [ {...} ] e alerta.mensagem = [ {...} ] (listas vazias se não houver vínculo)
-    await controlerAlertasAnuncio.anexarAnunciosAoAlerta(alerta)
-    await controlerAlertasMensagens.anexarMensagensAoAlerta(alerta)
-    await controlerAlertasDenuncia.anexarDenunciasAoAlerta(alerta)
+    await Promise.all([
+        controlerAlertasAnuncio.anexarAnunciosAoAlerta(alerta),
+        controlerAlertasMensagens.anexarMensagensAoAlerta(alerta),
+        controlerAlertasDenuncia.anexarDenunciasAoAlerta(alerta)
+    ])
 
     return alerta
 }

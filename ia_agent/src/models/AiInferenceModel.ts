@@ -2,6 +2,7 @@
 export type ItemCondition = 'novo' | 'ótimo estado' | 'usado' | 'danificado'
 
 import { GeminiService } from '../services/geminiService.js'
+import { env } from '../config/env.js'
 
 export interface ImageClassificationResult {
   category: string
@@ -32,8 +33,8 @@ export interface InferenceDecision {
 }
 
 export class AiInferenceModel {
-  // Limite estipulado de 1,5 segundos para a execução completa do pipeline de inferência 
-  private static readonly TIMEOUT_MS = 1500
+  // A chamada remota de visão precisa de tempo suficiente para retornar uma análise real.
+  private static readonly TIMEOUT_MS = Math.max(env.AI_TIMEOUT_MS, 20000)
   private static readonly FAILURE_THRESHOLD = 5
   private static readonly RESET_TIMEOUT_MS = 10000
 
@@ -53,7 +54,7 @@ export class AiInferenceModel {
     entityId: string,
     cleanText: string,
     imageBuffer?: Buffer,
-    modelVersion = 'v1.4.2-onnx'
+    modelVersion = env.GEMINI_MODEL
   ): Promise<InferenceDecision> {
     const now = Date.now()
 
@@ -110,9 +111,13 @@ export class AiInferenceModel {
     const startTime = Date.now()
     if (signal.aborted) throw new Error('TIMEOUT_EXCEEDED')
 
+    if (imageBuffer?.length && !GeminiService.isConfigured()) {
+      return this.buildFallbackDecision(entityId, 'Análise visual indisponível: Gemini não configurado.')
+    }
+
     if (GeminiService.isConfigured()) {
       try {
-        const ai = await GeminiService.analyzeListing('Anúncio', cleanText, imageBuffer)
+        const ai = await GeminiService.analyzeListing('Anúncio', cleanText, imageBuffer, signal)
         const classification = imageBuffer ? {
           category: ai.category,
           condition: ai.condition as ItemCondition,
@@ -127,8 +132,10 @@ export class AiInferenceModel {
           moderation: { isApproved: ai.approved, reasons: ai.reasons, confidence: ai.confidence, matchedTerms: [] },
           classification
         }
-      } catch {
-        // Usa o pipeline local quando o Gemini falhar ou retornar JSON inválido.
+      } catch (error) {
+        if (imageBuffer?.length) {
+          return this.buildFallbackDecision(entityId, `Análise visual indisponível: ${error instanceof Error ? error.message : 'falha no provedor'}`)
+        }
       }
     }
 
@@ -152,19 +159,10 @@ export class AiInferenceModel {
       matchedTerms
     }
 
-    // Classificação visual simulando runtime
-    let classification: ImageClassificationResult | undefined
-    if (imageBuffer && imageBuffer.length > 0) {
-      classification = {
-        category: 'Plásticos e Polímeros',
-        condition: 'usado',
-        confidence: 0.89,
-        inferenceTimeMs: Date.now() - startTime
-      }
-    }
+    const classification: ImageClassificationResult | undefined = undefined
 
     // Verificação da nota mínima de corte de 85% para aprovação automática
-    const requiresHuman = !moderation.isApproved || (classification ? classification.confidence < 0.85 : false)
+    const requiresHuman = !moderation.isApproved
 
     return {
       entityId,

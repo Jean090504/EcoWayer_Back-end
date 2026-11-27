@@ -12,7 +12,7 @@ const controlerPontos = require('../controller/pontos/pontos_controler.js')
 // GET /meraki/ecowayer/admin/home?period=diario|semanal|mensal
 // GET /meraki/ecowayer/admin/home/dashboard?period=diario|semanal|mensal
 router.get(['/', '/dashboard'], async function (request, response) {
-    const result = await controlerPontos.buscarDashboardPontos(request.query.period)
+    const result = await controlerPontos.buscarDashboardPontos(request.query.period, request.query.grafico)
     response.status(result.status_code)
     response.json(result)
 })

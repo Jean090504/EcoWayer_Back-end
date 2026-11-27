@@ -29,7 +29,7 @@ apiRoutes.use(requireAiToken)
 apiRoutes.post('/assistant/chat', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { message, history = [], audience = 'user', context = null } = req.body
-    if (!String(message || '').trim()) {
+    if (typeof message !== 'string' || !message.trim() || message.length > 2000) {
       res.status(400).json({ error: 'O campo message é obrigatório.' })
       return
     }
@@ -43,8 +43,15 @@ apiRoutes.post('/assistant/chat', async (req: Request, res: Response, next: Next
     const prompt = `Você é a Eco, assistente do EcoWayer. Responda exclusivamente em português do Brasil, com naturalidade, clareza e objetividade. Vá direto ao ponto: use no máximo 3 frases curtas ou até 3 bullets quando uma lista realmente ajudar. Não faça apresentações longas, não repita o contexto e não liste todos os módulos sem que isso seja pedido. Fale apenas sobre a plataforma EcoWayer e não invente dados, produtos, regras ou endereços. Se o assunto for externo ao EcoWayer, diga em uma frase que só pode ajudar com a plataforma. ${dadosDoPainel} Mensagem: ${String(message).slice(0, 2000)}`
     const contexto = audience === 'admin'
       ? 'Você atende um administrador do EcoWayer. Oriente sobre o painel, categorias, regras de pontuação, itens, usuários, chamados, pontos de coleta e relatórios. Não sugira compras.'
-      : 'Você atende um usuário do EcoWayer. Ajude a encontrar produtos recicláveis e a entender categorias, pontos de coleta e o funcionamento da plataforma.'
-    const resposta = await GeminiService.generate(`${contexto} ${prompt}`, Array.isArray(history) ? history.slice(-10) : [])
+      : 'Você atende um usuário do EcoWayer. Ajude a explorar anúncios, vendas, trocas, doações, carteira, pontos e entregas por QR Code. EcoPontos são locais de coleta; pontos de recompensa são consultados na Minha Carteira. Oriente apenas sobre funções disponíveis ao usuário. Não invente saldo, regras de pontuação, benefícios ou dados da conta. Não forneça dados, métricas, instruções de operação ou acesso do painel administrativo.'
+    const historico = Array.isArray(history) ? history.slice(-10)
+      .filter((item): item is { role: 'user' | 'model', text: string } =>
+        item && (item.role === 'user' || item.role === 'model') &&
+        typeof item.text === 'string' && item.text.trim().length > 0)
+      .map(item => ({ role: item.role, text: item.text.slice(0, 2000) })) : []
+    // Clientes antigos incluíam a pergunta atual no histórico, duplicando-a no Gemini.
+    if (historico.at(-1)?.role === 'user' && historico.at(-1)?.text === message) historico.pop()
+    const resposta = await GeminiService.generate(`${contexto} ${prompt}`, historico)
     res.json({ resposta, model: env.GEMINI_MODEL, provider: 'gemini' })
   } catch (err: any) {
     console.error('Falha temporária no assistente Gemini:', err?.message || err)

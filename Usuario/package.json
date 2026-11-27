@@ -8,7 +8,9 @@
   },
   "scripts": {
     "test": "node --test tests/*.cjs",
-    "migrate:pedidos": "node scripts/migrarPedidos.js"
+    "migrate:pedidos": "node scripts/migrarPedidos.js",
+    "migrate:contato": "node scripts/migrarContato.js",
+    "catalogo:demo": "node scripts/atualizarCatalogoDemo.js"
   },
   "keywords": [],
   "author": "",
@@ -27,6 +29,7 @@
     "knex": "^3.3.0",
     "mercadopago": "^3.6.2",
     "multer": "^2.5.0",
-    "mysql2": "^3.24.6"
+    "mysql2": "^3.24.6",
+    "nodemailer": "^7.0.13"
   }
 }

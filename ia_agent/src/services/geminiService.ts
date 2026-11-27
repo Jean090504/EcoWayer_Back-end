@@ -2,18 +2,25 @@ import { env } from '../config/env.js'
 
 type GeminiPart = { text: string } | { inlineData: { mimeType: string, data: string } }
 
+function imageMimeType(data: Buffer): string {
+  if (data.subarray(0, 3).toString('hex') === 'ffd8ff') return 'image/jpeg'
+  if (data.subarray(0, 8).toString('hex') === '89504e470d0a1a0a') return 'image/png'
+  if (data.subarray(0, 4).toString() === 'RIFF' && data.subarray(8, 12).toString() === 'WEBP') return 'image/webp'
+  throw new Error('Formato de imagem não suportado. Envie JPEG, PNG ou WebP.')
+}
+
 export class GeminiService {
   private static readonly fallbackModels = ['gemini-flash-lite-latest', 'gemini-3.8-flash', 'gemini-3.7-flash']
   static isConfigured(): boolean {
     return Boolean(env.GEMINI_API_KEY)
   }
 
-  static async generate(prompt: string, history: Array<{ role: 'user' | 'model', text: string }> = [], imageBuffer?: Buffer): Promise<string> {
+  static async generate(prompt: string, history: Array<{ role: 'user' | 'model', text: string }> = [], imageBuffer?: Buffer, signal?: AbortSignal): Promise<string> {
     if (!this.isConfigured()) throw new Error('GEMINI_API_KEY não configurada')
 
     const parts: GeminiPart[] = [{ text: prompt }]
     if (imageBuffer?.length) {
-      parts.push({ inlineData: { mimeType: 'image/jpeg', data: imageBuffer.toString('base64') } })
+      parts.push({ inlineData: { mimeType: imageMimeType(imageBuffer), data: imageBuffer.toString('base64') } })
     }
 
     const contents = [
@@ -27,7 +34,7 @@ export class GeminiService {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
         body: JSON.stringify({ contents, generationConfig: { temperature: 0.2 } }),
-        signal: AbortSignal.timeout(15000)
+        signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000)
       })
       const data = await response.json().catch(() => ({})) as any
       if (response.ok) {
@@ -42,17 +49,22 @@ export class GeminiService {
     throw new Error(lastError)
   }
 
-  static async analyzeListing(title: string, description: string, imageBuffer?: Buffer): Promise<{ approved: boolean, category: string, condition: string, confidence: number, reasons: string[] }> {
+  static async analyzeListing(title: string, description: string, imageBuffer?: Buffer, signal?: AbortSignal): Promise<{ approved: boolean, category: string, condition: string, confidence: number, reasons: string[] }> {
     const text = await this.generate(
-      `Analise este anúncio de reciclagem. Responda SOMENTE JSON válido no formato {"approved":true,"category":"...","condition":"novo|ótimo estado|usado|danificado","confidence":0.0,"reasons":[]}. Categorias permitidas: Vidro e Garrafas, Plásticos e Polímeros, Papel e Papelão, Metais, Eletrônicos e Baterias, Não Identificado. Título: ${title}. Descrição: ${description}`,
+      `Você é um revisor de anúncios de um mercado de usados, trocas e doações. Examine a imagem enviada e compare-a com o título e a descrição. Responda SOMENTE JSON válido no formato {"approved":true,"category":"categoria curta do objeto visível","condition":"novo|ótimo estado|usado|danificado","confidence":0.0,"reasons":[]}. Só aprove se o objeto principal for reconhecível, compatível com o anúncio e a imagem não contiver conteúdo proibido. Se a foto estiver ilegível, inconclusiva ou divergente, use approved=false, confidence abaixo de 0.85 e explique o motivo. Não infira detalhes invisíveis, como marca, funcionamento ou defeitos internos. Título: ${title}. Descrição: ${description}`,
       [],
-      imageBuffer
+      imageBuffer,
+      signal
     )
-    const json = JSON.parse(text.replace(/^```json\s*/i, '').replace(/\s*```$/i, ''))
+    const json = JSON.parse(text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, ''))
+    if (typeof json.approved !== 'boolean' || !Number.isFinite(Number(json.confidence)) || !String(json.category || '').trim()) {
+      throw new Error('Resposta de classificação visual inválida')
+    }
+    const condition = ['novo', 'ótimo estado', 'usado', 'danificado'].includes(json.condition) ? json.condition : 'usado'
     return {
       approved: Boolean(json.approved),
       category: String(json.category || 'Não Identificado'),
-      condition: String(json.condition || 'usado'),
+      condition,
       confidence: Math.max(0, Math.min(1, Number(json.confidence) || 0)),
       reasons: Array.isArray(json.reasons) ? json.reasons.map(String) : []
     }

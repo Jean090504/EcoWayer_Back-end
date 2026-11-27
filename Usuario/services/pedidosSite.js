@@ -102,7 +102,7 @@ function criarServico(db, gateway, segredo) {
                 update.id_pagamento = idPagamento
             } else await trx('tbl_pagamento').where({ id: p.id_pagamento }).update({ status: statusLegado, id_externo: String(pagamento.id) })
             if (p.status_pagamento !== status || !p.id_pagamento) {
-                await trx('tbl_historico_pagamento').insert({ id_pagamento: p.id_pagamento || update.id_pagamento, status: statusLegado, data_alteracao: new Date(), detalhes: 'Mercado Pago — pedido de teste no site' })
+                await trx('tbl_historico_pagamento').insert({ id_pagamento: p.id_pagamento || update.id_pagamento, status: statusLegado, data_alteracao: new Date(), detalhes: 'Mercado Pago — pedido de teste EcoWayer' })
             }
             if (aprovado) await trx('tbl_anuncio').where({ id: p.id_anuncio, status: 'ativo' }).update({ status: 'negociado' })
             await trx('tbl_pedido_site').where({ id }).update(update)

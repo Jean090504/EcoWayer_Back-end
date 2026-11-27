@@ -1,0 +1,5 @@
+const db = require('knex')(require('../model/database_config_knex/knexFile').development)
+require('../db/migrations/20261126_desafios_contato').up(db)
+    .then(() => console.log('Estrutura de verificação de contatos pronta.'))
+    .catch(e => { console.error('Falha na migração de contatos:', e.code || e.name); process.exitCode = 1 })
+    .finally(() => db.destroy())

@@ -24,6 +24,8 @@ function ePublica(request) {
     if (request.path === '/usuario/login' && request.method === 'POST') return true
     if (request.path === '/usuario/login/google' && request.method === 'POST') return true
     if (request.path === '/usuario/logout' && request.method === 'POST') return true
+    if (request.path === '/ia/assistant-chat' && request.method === 'POST') return true
+    if (request.method === 'POST' && ['/usuario/verificacao/iniciar', '/usuario/verificacao/reenviar', '/usuario/verificacao/confirmar', '/usuario/recuperar-senha'].includes(request.path)) return true
     return request.method === 'GET' && publicPrefixes.some((prefix) => request.path === prefix || request.path.startsWith(`${prefix}/`))
 }
 

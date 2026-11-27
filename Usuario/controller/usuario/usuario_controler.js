@@ -319,10 +319,14 @@ const loginGoogle = async function (credential) {
         if (!encontrado) {
             return { status: false, status_code: 404, message: 'Este e-mail Google ainda não possui cadastro. Crie sua conta com seus dados completos primeiro.' }
         }
+        if (String(encontrado.status || '').trim().toLowerCase() !== 'ativo') {
+            return { status: false, status_code: 403, message: 'Esta conta esta desativada. Entre em contato com o suporte para reativa-la.' }
+        }
         if (!process.env.JWT_SECRET) return { status: false, status_code: 500, message: 'Autenticação indisponível.' }
 
         const token = require('../../model/sessaoUsuario.js').emitirToken(encontrado, process.env.JWT_SECRET)
         delete encontrado.senha
+        delete encontrado.status
         return {
             status: true,
             status_code: 200,

@@ -222,33 +222,9 @@ const buscarUsuario = async function (id) {
     }
 }
 
-// A exclusão dos filhos (tbl_acesso, tbl_anuncio) é feita em transação dentro do DAO
+// Preserva anúncios, pedidos e histórico ao desativar uma conta.
 const excluirUsuario = async function (id) {
-    let message = JSON.parse(JSON.stringify(configMessages))
-
-    try {
-        let resultBuscarID = await buscarUsuario(id)
-
-        if (resultBuscarID.status) {
-            let result = await usuarioDAO.deleteUsuario(id)
-
-            if (result) {
-                message.DEFAULT_MESSAGE.status = message.SUCCESS_DELETED_ITEM.status
-                message.DEFAULT_MESSAGE.status_code = message.SUCCESS_DELETED_ITEM.status_code
-                message.DEFAULT_MESSAGE.message = message.SUCCESS_DELETED_ITEM.message
-                message.DEFAULT_MESSAGE.response = { id: Number(id) }
-
-                return message.DEFAULT_MESSAGE // 200
-            } else {
-                return message.ERROR_INTERNAL_SEVER_MODEL // 500
-            }
-        } else {
-            return resultBuscarID // 400, 404 ou 500
-        }
-    } catch (error) {
-        console.log(error)
-        return message.ERROR_INTERNAL_CONTROLER // 500
-    }
+    return alterarStatusUsuario(id, 'desativado')
 }
 
 // Padroniza os dados antes de gravar

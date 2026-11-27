@@ -67,6 +67,32 @@ const updateStatusUsuario = async function (id, idStatus) {
     return knexConex('tbl_usuario').where({ id }).update({ id_status_usuario: idStatus })
 }
 
+// Consulta compacta para o painel; cada usuário aparece apenas uma vez.
+const listarUsuariosAdmin = async function ({ busca = '', status = '', pagina = 1, limite = 20 }) {
+    const consulta = knexConex('tbl_usuario as u')
+        .leftJoin('tbl_status_usuario as s', 's.id', 'u.id_status_usuario')
+    if (status) consulta.where('s.status', status)
+    if (busca) {
+        const termo = `%${busca.replace(/[\\%_]/g, '\\$&')}%`
+        consulta.where(function () {
+            this.where('u.nome', 'like', termo)
+                .orWhereExists(function () {
+                    this.select(knexConex.raw('1')).from('tbl_email as e')
+                        .whereRaw('e.id_usuario = u.id').where('e.email', 'like', termo)
+                })
+        })
+    }
+    const [{ total }] = await consulta.clone().count({ total: 'u.id' })
+    const usuarios = await consulta.clone()
+        .select('u.id', 'u.nome', 's.status')
+        .select(knexConex.raw("DATE_FORMAT(u.data_cadastro, '%Y-%m-%d %H:%i:%s') AS data_cadastro"))
+        .select(knexConex.raw('(SELECT MIN(e.email) FROM tbl_email e WHERE e.id_usuario = u.id) AS email'))
+        .select(knexConex.raw('(SELECT MIN(t.numero) FROM tbl_telefone t WHERE t.id_usuario = u.id) AS telefone'))
+        .select(knexConex.raw("(SELECT DATE_FORMAT(MAX(a.data_acesso), '%Y-%m-%d %H:%i:%s') FROM tbl_acesso a WHERE a.id_usuario = u.id) AS ultimo_acesso"))
+        .orderBy('u.id', 'desc').limit(limite).offset((pagina - 1) * limite)
+    return { usuarios, total: Number(total), pagina, limite }
+}
+
 const selectByIdUsuario = async function (id) {
     try {
         let sql = `SELECT id, nome, cpf,
@@ -98,28 +124,11 @@ const selectAllUsuario = async function () {
     }
 }
 
-// Apaga primeiro os filhos (tbl_acesso, tbl_anuncio) e depois o usuário, em transação.
-// Se existir outra tabela com FK para tbl_usuario, inclua o DELETE dela antes do último.
-const deleteUsuario = async function (id) {
-    try {
-        await knexConex.transaction(async function (trx) {
-            await trx.raw(`DELETE FROM tbl_acesso WHERE id_usuario = ?;`, [id])
-            await trx.raw(`DELETE FROM tbl_anuncio WHERE id_usuario = ?;`, [id])
-            await trx.raw(`DELETE FROM tbl_usuario WHERE id = ?;`, [id])
-        })
-
-        return true
-    } catch (error) {
-        console.log(error)
-        return false
-    }
-}
-
 module.exports = {
     insertUsuario,
     updateUsuario,
     updateStatusUsuario,
+    listarUsuariosAdmin,
     selectByIdUsuario,
-    selectAllUsuario,
-    deleteUsuario
+    selectAllUsuario
 }

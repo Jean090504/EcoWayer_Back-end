@@ -1,8 +1,9 @@
 
 
 import { ItemCondition } from '../models/AiInferenceModel.js'
+import { GeminiService } from './geminiService.js'
 
-export type RecyclableCategory = 'Vidro e Garrafas' | 'Plásticos e Polímeros' | 'Papel e Papelão' | 'Metais' | 'Eletrônicos e Baterias'
+export type RecyclableCategory = string
 
 export interface IVisualEvaluation {
   category: RecyclableCategory
@@ -32,11 +33,12 @@ export class AiEngineService {
       throw new Error('TIMEOUT_EXCEEDED')
     }
 
-    // Execução simulada com verificação periódica do AbortSignal
+    const result = await GeminiService.analyzeListing('Anúncio', '', imageBuffer, signal)
+    if (!result.approved) throw new Error(result.reasons.join('; ') || 'Imagem precisa de revisão humana')
     return {
-      category: 'Vidro e Garrafas',
-      condition: 'ótimo estado',
-      confidence: 0.94
+      category: result.category,
+      condition: result.condition as ItemCondition,
+      confidence: result.confidence
     }
   }
 

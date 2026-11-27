@@ -125,17 +125,8 @@ const calcularJanela = (dataReferencia, periodo) => {
 }
 
 const selectDashboard = async function (period = 'semanal', grafico = '30d') {
-    const [referencia] = await knexConex.raw(`
-        SELECT COALESCE(
-            GREATEST(
-                (SELECT MAX(data_acesso) FROM tbl_acesso),
-                (SELECT MAX(data_cadastro) FROM tbl_usuario),
-                (SELECT MAX(data_publicacao) FROM tbl_anuncio),
-                (SELECT MAX(criado_em) FROM tbl_alertas),
-                (SELECT MAX(data_registro) FROM tbl_pontos)
-            ), CURDATE()
-        ) AS data_referencia
-    `)
+    // O período do painel sempre se refere à data atual do mesmo banco usado pelos apps.
+    const [referencia] = await knexConex.raw('SELECT CURDATE() AS data_referencia')
     const periodo = ['diario', 'semanal', 'mensal'].includes(period) ? period : 'semanal'
     const dataReferencia = referencia[0]?.data_referencia
     const janela = calcularJanela(dataReferencia, periodo)
@@ -176,9 +167,12 @@ const selectDashboard = async function (period = 'semanal', grafico = '30d') {
             (SELECT COUNT(*) FROM tbl_regra_pontuacao WHERE status = 1 OR status = 'ativo') AS regrasAtivas,
             (SELECT COUNT(DISTINCT a.id_usuario)
                FROM tbl_acesso a JOIN tbl_usuario u ON u.id = a.id_usuario
-              WHERE a.data_acesso >= ? AND a.data_acesso < ? AND (u.id_status_usuario = 1 OR u.id_status_usuario = 'ativo')) AS usuariosAtivosHoje,
+               JOIN tbl_status_usuario s ON s.id = u.id_status_usuario
+              WHERE a.data_acesso >= ? AND a.data_acesso < ? AND s.status = 'ativo') AS usuariosComAcessoPeriodo,
             (SELECT COUNT(*) FROM tbl_usuario WHERE data_cadastro >= ? AND data_cadastro < ?) AS usuariosCadastrados,
             (SELECT COUNT(*) FROM tbl_usuario) AS usuariosTotal,
+            (SELECT COUNT(*) FROM tbl_usuario u JOIN tbl_status_usuario s ON s.id = u.id_status_usuario WHERE s.status = 'ativo') AS usuariosAtivosTotal,
+            (SELECT COUNT(*) FROM tbl_usuario u JOIN tbl_status_usuario s ON s.id = u.id_status_usuario WHERE s.status = 'desativado') AS usuariosInativosTotal,
             (SELECT COUNT(*) FROM tbl_anuncio a
               WHERE a.data_publicacao >= ? AND a.data_publicacao < ?
                 AND (SELECT h.status FROM tbl_historico_anuncio h WHERE h.id_anuncio = a.id ORDER BY h.data_alteracao DESC, h.id DESC LIMIT 1) = 'ativo') AS anunciosAtivos,
@@ -197,7 +191,9 @@ const selectDashboard = async function (period = 'semanal', grafico = '30d') {
     const [comparativos] = await knexConex.raw(`
         SELECT
           (SELECT COUNT(DISTINCT a.id_usuario) FROM tbl_acesso a
-             WHERE a.data_acesso >= ? AND a.data_acesso < ?) AS ativosMesAnterior,
+             JOIN tbl_usuario u ON u.id = a.id_usuario
+             JOIN tbl_status_usuario s ON s.id = u.id_status_usuario
+             WHERE a.data_acesso >= ? AND a.data_acesso < ? AND s.status = 'ativo') AS ativosMesAnterior,
           (SELECT COUNT(*) FROM tbl_usuario
              WHERE data_cadastro >= ? AND data_cadastro < ?) AS cadastradosMesAnterior,
           (SELECT COUNT(*) FROM tbl_anuncio
@@ -266,13 +262,15 @@ const selectDashboard = async function (period = 'semanal', grafico = '30d') {
             dataFim: deslocarDias(janela.fim, -1),
             graficoPeriodo,
             evolucaoPontos,
-            usuariosAtivosHoje: Number(totais[0]?.usuariosAtivosHoje || 0),
+            usuariosComAcessoPeriodo: Number(totais[0]?.usuariosComAcessoPeriodo || 0),
             usuariosCadastrados: Number(totais[0]?.usuariosCadastrados || 0),
             usuariosTotal: Number(totais[0]?.usuariosTotal || 0),
+            usuariosAtivosTotal: Number(totais[0]?.usuariosAtivosTotal || 0),
+            usuariosInativosTotal: Number(totais[0]?.usuariosInativosTotal || 0),
             anunciosAtivos: Number(totais[0]?.anunciosAtivos || 0),
             denunciasNoMes: Number(totais[0]?.denunciasNoMes || 0),
             variacoes: {
-                usuariosAtivosHoje: percentual(totais[0]?.usuariosAtivosHoje, comparativos[0]?.ativosMesAnterior),
+                usuariosComAcessoPeriodo: percentual(totais[0]?.usuariosComAcessoPeriodo, comparativos[0]?.ativosMesAnterior),
                 usuariosCadastrados: percentual(totais[0]?.usuariosCadastrados, comparativos[0]?.cadastradosMesAnterior),
                 anunciosAtivos: percentual(totais[0]?.anunciosAtivos, comparativos[0]?.anunciosMesAnterior),
                 denunciasNoMes: percentual(totais[0]?.denunciasNoMes, comparativos[0]?.denunciasMesAnterior)

@@ -80,7 +80,11 @@ const selectAllAnuncios = async function (idUsuario) {
         let sql = `SELECT a.*,
     (SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = a.id ORDER BY ia.ordem IS NULL, ia.ordem, ia.id LIMIT 1) AS imagem,
     (SELECT c.nome FROM tbl_categoria c WHERE c.id = a.id_categoria) AS categoria,
-    (SELECT m.nome FROM tbl_modalidade m WHERE m.id = a.id_modalidade) AS modalidade_nome
+    (SELECT m.nome FROM tbl_modalidade m WHERE m.id = a.id_modalidade) AS modalidade_nome,
+    (SELECT ci.nome FROM tbl_condicao_item ci WHERE ci.id = a.id_condicao_item) AS condicao_nome,
+    (SELECT u.nome FROM tbl_usuario u WHERE u.id = a.id_usuario) AS vendedor_nome,
+    COALESCE(a.cidade, (SELECT e.cidade FROM tbl_endereco_usuario eu JOIN tbl_endereco e ON e.id = eu.id_endereco WHERE eu.id_usuario = a.id_usuario ORDER BY eu.id DESC LIMIT 1)) AS cidade_exibicao,
+    COALESCE(a.uf, (SELECT e.sigla FROM tbl_endereco_usuario eu JOIN tbl_endereco e ON e.id = eu.id_endereco WHERE eu.id_usuario = a.id_usuario ORDER BY eu.id DESC LIMIT 1)) AS uf_exibicao
     FROM tbl_anuncio a WHERE ${idUsuario ? "(a.status = 'ativo' OR (a.id_usuario = ? AND a.status <> 'excluido'))" : "a.status = 'ativo'"} ORDER BY a.id`
 
         let result = await knexConex.raw(sql, idUsuario ? [idUsuario] : [])
@@ -100,7 +104,10 @@ const selectAnuncioById = async function (id, idUsuario) {
         let sql = `SELECT a.*,
     (SELECT i.url FROM tbl_imagem_anuncio ia JOIN tbl_imagem i ON i.id = ia.id_imagem WHERE ia.id_anuncio = a.id ORDER BY ia.ordem IS NULL, ia.ordem, ia.id LIMIT 1) AS imagem,
     (SELECT c.nome FROM tbl_categoria c WHERE c.id = a.id_categoria) AS categoria,
-    (SELECT m.nome FROM tbl_modalidade m WHERE m.id = a.id_modalidade) AS modalidade_nome
+    (SELECT m.nome FROM tbl_modalidade m WHERE m.id = a.id_modalidade) AS modalidade_nome,
+    (SELECT ci.nome FROM tbl_condicao_item ci WHERE ci.id = a.id_condicao_item) AS condicao_nome,
+    COALESCE(a.cidade, (SELECT e.cidade FROM tbl_endereco_usuario eu JOIN tbl_endereco e ON e.id = eu.id_endereco WHERE eu.id_usuario = a.id_usuario ORDER BY eu.id DESC LIMIT 1)) AS cidade_exibicao,
+    COALESCE(a.uf, (SELECT e.sigla FROM tbl_endereco_usuario eu JOIN tbl_endereco e ON e.id = eu.id_endereco WHERE eu.id_usuario = a.id_usuario ORDER BY eu.id DESC LIMIT 1)) AS uf_exibicao
     FROM tbl_anuncio a WHERE a.id = ? AND (a.status = 'ativo' OR (a.id_usuario = ? AND a.status <> 'excluido'))`
 
         let result = await knexConex.raw(sql, [id, idUsuario || 0])

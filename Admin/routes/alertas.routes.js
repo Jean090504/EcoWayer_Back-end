@@ -13,6 +13,7 @@ const bodyParser = require('body-parser')
 const bodyParserJSON = bodyParser.json()
 
 const controlerAlertas = require('../controller/alertas/alertas_controler.js')
+const { listarFila } = require('../services/filaChamados.js')
 
 // POST /       -> inserir
 router.post('/', bodyParserJSON, async function (request, response) {
@@ -28,6 +29,17 @@ router.get('/', async function (request, response) {
 
     response.status(result.status_code)
     response.json(result)
+})
+
+// GET /fila    -> resumo rápido dos chamados pendentes
+router.get('/fila', async function (_request, response) {
+    try {
+        const alertas = await listarFila()
+        response.json({ status: true, response: { count: alertas.length, alertas } })
+    } catch (error) {
+        console.error('Falha ao carregar fila de chamados:', error.code || error.message)
+        response.status(503).json({ status: false, message: 'Não foi possível carregar a fila de chamados.' })
+    }
 })
 
 // GET /:id     -> buscar por id

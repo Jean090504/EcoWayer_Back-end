@@ -14,6 +14,35 @@ const bodyParserJSON = bodyParser.json()
 
 const controlerIA = require('../controller/ia/ia_controler.js')
 
+// O painel usa esta rota para conversar com a Eco. A credencial do agente
+// permanece no backend; a autenticação administrativa é aplicada em app.js.
+router.post('/assistant-chat', bodyParserJSON, async function (request, response) {
+    const message = request.body?.message
+    if (typeof message !== 'string' || !message.trim() || message.length > 2000) {
+        return response.status(400).json({ message: 'Informe uma mensagem de até 2000 caracteres.' })
+    }
+
+    const aiToken = process.env.AI_SECRET_TOKEN
+    if (!aiToken) return response.status(503).json({ message: 'Assistente de IA não configurado no servidor.' })
+
+    const aiUrl = String(process.env.AI_AGENT_URL || 'http://localhost:3333/api/v1/ai').replace(/\/+$/, '')
+    const history = Array.isArray(request.body.history) ? request.body.history.slice(-10) : []
+    const context = request.body.context && typeof request.body.context === 'object' && !Array.isArray(request.body.context)
+        ? request.body.context : null
+    try {
+        const aiResponse = await fetch(`${aiUrl}/assistant/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-ai-token': aiToken },
+            body: JSON.stringify({ message: message.trim(), history, context, audience: 'admin' }),
+            signal: AbortSignal.timeout(20000)
+        })
+        const data = await aiResponse.json().catch(() => ({}))
+        return response.status(aiResponse.status).json(data)
+    } catch {
+        return response.status(502).json({ message: 'Assistente de IA indisponível.' })
+    }
+})
+
 // POST /       -> inserir
 router.post('/', bodyParserJSON, async function (request, response) {
     let result = await controlerIA.inserirNovaIA(request.body, request.headers['content-type'])

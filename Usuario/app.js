@@ -44,6 +44,10 @@ app.use('/uploads/anuncios', express.static(uploadDir, {
     dotfiles: 'deny',
     setHeaders: res => res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
 }))
+app.use('/catalogo-demo', express.static(require('path').resolve(__dirname, 'catalogo-demo'), {
+    dotfiles: 'deny',
+    setHeaders: res => res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+}))
 app.use('/meraki/ecowayer/user/anuncio', criarRouter(dbPublicacao))
 
 app.use('/meraki/ecowayer/user/ia', cors(corsOptions), iaRouter)
