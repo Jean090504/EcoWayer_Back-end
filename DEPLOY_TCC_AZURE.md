@@ -9,6 +9,7 @@ Esta instalação é de **homologação**. Os cinco serviços usam HTTPS, o mesm
 | API usuário | https://ecowayer-usuario-tcc.azurewebsites.net/health |
 | API admin | https://ecowayer-admin-tcc.azurewebsites.net/health |
 | API IA | https://ecowayer-ia-tcc.azurewebsites.net/health |
+| APK Android de apresentação | https://ecowayer-site-tcc.azurewebsites.net/downloads/ecowayer-tcc.apk |
 
 ## Configuração e publicação
 
@@ -25,5 +26,5 @@ Esta instalação é de **homologação**. Os cinco serviços usam HTTPS, o mesm
 - Para verificação de cadastro, é preciso configurar credenciais de um provedor SMTP e de SMS na API Usuário. Sem elas os códigos não são entregues. Não desative a verificação para simular uma conta validada.
 - Fotografias de anúncios precisam de armazenamento persistente externo antes de abrir para usuários. O App Service pode substituir arquivos locais durante uma publicação. Avalie Cloudinary ou Azure Blob e confira as URLs existentes no banco.
 - O banco MySQL tem uma regra de firewall ampla herdada do ambiente anterior; restrinja o acesso e troque as credenciais antes de liberar o sistema publicamente. As credenciais antigas também foram compartilhadas na conversa e devem ser rotacionadas.
-- Sem Play Console, instale o APK Android por distribuição direta no TCC. A publicação na Play exige conta, chave definitiva de assinatura e chave Maps vinculada ao certificado final.
+- Sem Play Console, instale o APK Android de depuração pelo link acima ou pelo rodapé do site. O pacote aponta para a API HTTPS pública e foi compilado com a chave Maps de depuração; não é uma versão para Play Store. A publicação na Play exige conta, chave definitiva de assinatura e chave Maps vinculada ao certificado final.
 - Verifique em navegador e celular físico: cadastro com envio real de códigos, anúncio com foto, conversa, pagamento de teste, retorno e webhook, QR, carteira, moderação e IA. Um `/health` 200 comprova somente que o serviço HTTP iniciou.
