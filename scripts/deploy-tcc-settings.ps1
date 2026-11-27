@@ -91,6 +91,7 @@ $userSettings['MP_FRONTEND_URL'] = $userUrl
 Set-Settings "${Prefix}-usuario-tcc" $userSettings
 
 $aiSettings = $base.Clone()
+$aiSettings['SCM_DO_BUILD_DURING_DEPLOYMENT'] = 'false'
 $aiSettings['DB_PASS'] = $ai.DB_PASS
 $aiSettings['GEMINI_API_KEY'] = $ai.GEMINI_API_KEY
 $aiSettings['GEMINI_MODEL'] = $ai.GEMINI_MODEL

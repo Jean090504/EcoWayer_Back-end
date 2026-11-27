@@ -1,5 +1,7 @@
 # Publicação do EcoWayer
 
+> Para a instalação atual de homologação na Azure, consulte [DEPLOY_TCC_AZURE.md](./DEPLOY_TCC_AZURE.md). As instruções abaixo descrevem uma implantação futura de produção e não representam a configuração atual do TCC.
+
 Os três repositórios ficam lado a lado no desenvolvimento. A publicação usa cinco serviços e o app Android:
 
 | Componente | Tipo sugerido | Comando/saída |
