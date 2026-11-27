@@ -3,6 +3,14 @@ const assert = require('node:assert/strict')
 const express = require('express')
 const controllerPath = require.resolve('../controller/ia/ia_controler.js')
 require.cache[controllerPath] = { id: controllerPath, filename: controllerPath, loaded: true, exports: {} }
+for (const [path, exports] of [
+    ['../model/DAO/pontos/pontos.js', { dbContexto: {} }],
+    ['../controller/pontos/pontos_controler.js', { buscarDashboardPontos: async () => ({}) }],
+    ['../services/contextoAssistente.js', { obterContextoPainel: async () => ({ pontosUltimosDoisDias: 99 }) }]
+]) {
+    const id = require.resolve(path)
+    require.cache[id] = { id, filename: id, loaded: true, exports }
+}
 const router = require('../routes/ia.routes.js')
 delete require.cache[controllerPath]
 
@@ -29,7 +37,7 @@ test('chat administrativo encaminha mensagem, contexto e credencial ao agente de
         assert.match(forwarded.url, /\/assistant\/chat$/)
         assert.equal(forwarded.options.headers['x-ai-token'], 'segredo-teste')
         assert.deepEqual(JSON.parse(forwarded.options.body), {
-            message: 'Quantos pontos?', history: [], context: { pontosUltimosDoisDias: 12 }, audience: 'admin'
+            message: 'Quantos pontos?', history: [], context: { pontosUltimosDoisDias: 99 }, audience: 'admin'
         })
     } finally {
         await new Promise(resolve => server.close(resolve))

@@ -292,6 +292,7 @@ const selectDashboard = async function (period = 'semanal', grafico = '30d') {
 }
 
 module.exports = {
+    dbContexto: knexConex,
     insertPontos,
     updatePontos,
     selectByIdPontos,
