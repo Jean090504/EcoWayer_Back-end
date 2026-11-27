@@ -80,7 +80,7 @@ $userSettings['DB_PASSWORD'] = $user.DB_PASSWORD
 $userSettings['JWT_SECRET'] = Get-OrCreateSecret "${Prefix}-usuario-tcc" 'JWT_SECRET'
 $userSettings['JWT_EXPIRES_IN'] = '1h'
 $userSettings['AI_AGENT_URL'] = $aiUrl
-foreach ($key in @('MP_ACCESS_TOKEN', 'MP_APP_ID', 'CLOUDINARY_CLOUD_NAME', 'VITE_CLOUDINARY_UPLOAD_PRESET', 'GOOGLE_MAPS_API_KEY')) {
+foreach ($key in @('MP_ACCESS_TOKEN', 'MP_APP_ID', 'CLOUDINARY_CLOUD_NAME', 'VITE_CLOUDINARY_UPLOAD_PRESET', 'GOOGLE_MAPS_API_KEY', 'GOOGLE_CLIENT_ID')) {
     if ($user[$key]) { $userSettings[$key] = $user[$key] }
 }
 $userSettings['MP_TEST_MODE'] = '1'
