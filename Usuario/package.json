@@ -7,6 +7,7 @@
     "doc": "doc"
   },
   "scripts": {
+    "start": "node app.js",
     "test": "node --test tests/*.cjs",
     "migrate:pedidos": "node scripts/migrarPedidos.js",
     "migrate:contato": "node scripts/migrarContato.js",

@@ -1,0 +1,73 @@
+name: Verificar e publicar APIs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        servico: [Admin, Usuario, ia_agent]
+    defaults:
+      run:
+        working-directory: ${{ matrix.servico }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ${{ matrix.servico }}/package-lock.json
+      - run: npm ci
+      - name: Testes independentes de banco externo
+        if: matrix.servico == 'Usuario'
+        run: node --test tests/assistente_ia.cjs tests/pedidos_site.cjs
+      - name: Testes do serviço
+        if: matrix.servico != 'Usuario'
+        env:
+          AI_SECRET_TOKEN: ci-only-test-secret
+        run: npm test
+
+  publicar:
+    if: vars.AZURE_DEPLOY_ENABLED == 'true'
+    needs: verificar
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - servico: Admin
+            app: AZURE_ADMIN_APP_NAME
+          - servico: Usuario
+            app: AZURE_USUARIO_APP_NAME
+          - servico: ia_agent
+            app: AZURE_IA_APP_NAME
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: ${{ matrix.servico }}/package-lock.json
+      - run: npm ci
+        working-directory: ${{ matrix.servico }}
+      - run: npm run build
+        if: matrix.servico == 'ia_agent'
+        working-directory: ia_agent
+      - run: npm prune --omit=dev
+        working-directory: ${{ matrix.servico }}
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars[matrix.app] }}
+          package: ${{ matrix.servico }}

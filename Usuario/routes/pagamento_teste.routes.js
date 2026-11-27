@@ -5,24 +5,30 @@ const router = express.Router()
 const pedidosRouter = express.Router()
 
 function disponivel() {
-    return process.env.NODE_ENV !== 'production' && process.env.MP_TEST_MODE === '1' && Boolean(process.env.MP_ACCESS_TOKEN)
+    if (!process.env.MP_ACCESS_TOKEN) return false
+    if (process.env.MP_TEST_MODE === '1') return process.env.NODE_ENV !== 'production'
+    return process.env.NODE_ENV === 'production' && process.env.MP_LIVE_ENABLED === '1' &&
+        process.env.MP_SETTLEMENT_MODE === 'platform' &&
+        Boolean(process.env.MP_WEBHOOK_SECRET) && /^https:\/\//.test(process.env.MP_BACKEND_URL || '') &&
+        /^https:\/\//.test(process.env.MP_FRONTEND_URL || '')
 }
+function ambiente() { return process.env.MP_TEST_MODE === '1' ? 'teste' : 'producao' }
 function cliente() { return new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN, options: { timeout: 10000 } }) }
 function origemBackend() { return (process.env.MP_BACKEND_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '') }
-async function exigirContaTeste() {
-    // APP_USR também pode ser token de teste: verifica a conta, não o prefixo.
+async function exigirContaCorreta() {
+    // APP_USR também pode ser token de teste: consulta a conta, não o prefixo.
     const resposta = await fetch('https://api.mercadopago.com/users/me', {
         headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}` }, signal: AbortSignal.timeout(10000)
     })
     const conta = await resposta.json()
-    if (!resposta.ok || !conta.tags?.includes('test_user')) {
-        throw Object.assign(new Error('Configure as credenciais do vendedor de teste do Mercado Pago. Pagamentos reais estão bloqueados.'), { status: 503 })
+    if (!resposta.ok || Boolean(conta.tags?.includes('test_user')) !== (ambiente() === 'teste')) {
+        throw Object.assign(new Error('As credenciais do Mercado Pago não correspondem ao ambiente configurado.'), { status: 503 })
     }
 }
 function gateway() {
     return {
         async criarPreferencia(p) {
-            await exigirContaTeste()
+            await exigirContaCorreta()
             const retorno = `${origemBackend()}/mercadopago/retorno?pedido=${p.id}`
             return new Preference(cliente()).create({ body: {
                 items: [{ id: String(p.id_anuncio), title: p.titulo, quantity: 1, unit_price: Number(p.valor), currency_id: 'BRL' }],
@@ -38,22 +44,26 @@ function gateway() {
         }
     }
 }
-function servico(req) { return criarServico(req.app.locals.dbPublicacao, gateway(), process.env.JWT_SECRET) }
+function servico(req) { return criarServico(req.app.locals.dbPublicacao, gateway(), process.env.JWT_SECRET, ambiente()) }
 function rota(handler) {
     return async (req, res) => {
         res.set('Cache-Control', 'no-store')
         if (!disponivel()) return res.status(503).json({ message: 'Pedidos de teste não estão disponíveis.' })
         try { await handler(req, res, servico(req)) } catch (e) {
-            if (!e.status) console.error('Falha no pedido de teste:', e.code || e.name)
+            if (!e.status) console.error('Falha no pedido:', e.code || e.name)
             res.status(e.status || 502).json({ message: e.status ? e.message : 'Não foi possível atualizar o pedido. Tente novamente.' })
         }
     }
 }
-router.post('/teste/preferencia', rota(async (req, res, s) => {
+const criarPreferencia = rota(async (req, res, s) => {
     const id = Number(req.body?.id_anuncio)
     if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ message: 'Anúncio inválido.' })
     res.json({ response: await s.iniciar(id, req.usuario.id) })
-}))
+})
+router.post('/preferencia', criarPreferencia)
+router.post('/teste/preferencia', (req, res, next) => process.env.MP_TEST_MODE === '1'
+    ? criarPreferencia(req, res, next)
+    : res.status(404).json({ message: 'Rota de teste indisponível.' }))
 pedidosRouter.get('/', rota(async (req, res, s) => {
     const pedidos = await req.app.locals.dbPublicacao('tbl_pedido_site')
         .where('id_comprador', req.usuario.id).orWhere('id_vendedor', req.usuario.id).orderBy('criado_em', 'desc').limit(100)
@@ -95,4 +105,4 @@ function retorno(req, res) {
     if (/^[a-f0-9-]{36}$/.test(id)) url.searchParams.set('pedido', id)
     res.set('Cache-Control', 'no-store').redirect(303, url.toString())
 }
-module.exports = { router, pedidosRouter, retorno, webhook }
+module.exports = { router, pedidosRouter, retorno, webhook, disponivel }

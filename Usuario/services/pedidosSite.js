@@ -4,10 +4,10 @@ function falhar(status, message) { throw Object.assign(new Error(message), { sta
 function hashCodigo(id, codigo, segredo) {
     return crypto.createHmac('sha256', segredo).update(`${id}:${codigo}`).digest('hex')
 }
-function validarPagamento(pedido, pagamento) {
-    if (pagamento.live_mode !== false || pagamento.external_reference !== pedido.id ||
+function validarPagamento(pedido, pagamento, ambiente = 'teste') {
+    if (pagamento.live_mode !== (ambiente === 'producao') || pagamento.external_reference !== pedido.id ||
         pagamento.currency_id !== 'BRL' || Math.round(Number(pagamento.transaction_amount) * 100) !== Math.round(Number(pedido.valor) * 100)) {
-        falhar(409, 'Pagamento não corresponde ao pedido de teste.')
+        falhar(409, 'Pagamento não corresponde ao pedido.')
     }
 }
 function assinaturaValida(req, segredo) {
@@ -15,11 +15,12 @@ function assinaturaValida(req, segredo) {
     const requestId = req.get('x-request-id') || ''
     const partes = Object.fromEntries(String(req.get('x-signature') || '').split(',').map(s => s.trim().split('=')))
     if (!segredo || !/^\d{1,20}$/.test(id) || !requestId || !/^\d+$/.test(partes.ts || '') || !/^[a-f0-9]{64}$/i.test(partes.v1 || '')) return false
+    if (Math.abs(Date.now() - Number(partes.ts) * 1000) > 10 * 60 * 1000) return false
     const esperado = crypto.createHmac('sha256', segredo).update(`id:${id};request-id:${requestId};ts:${partes.ts};`).digest()
     return crypto.timingSafeEqual(esperado, Buffer.from(partes.v1, 'hex'))
 }
 
-function criarServico(db, gateway, segredo) {
+function criarServico(db, gateway, segredo, ambiente = 'teste') {
     async function obter(id, usuario, trx = db) {
         const p = await trx('tbl_pedido_site').where({ id }).first()
         if (!p || ![Number(p.id_comprador), Number(p.id_vendedor)].includes(Number(usuario))) falhar(404, 'Pedido não encontrado.')
@@ -27,12 +28,13 @@ function criarServico(db, gateway, segredo) {
     }
     function publico(p, usuario) {
         const { codigo_hash, codigo_tentativas, ...dados } = p
-        return { ...dados, papel: Number(p.id_comprador) === Number(usuario) ? 'comprador' : 'vendedor', ambiente: 'teste' }
+        return { ...dados, papel: Number(p.id_comprador) === Number(usuario) ? 'comprador' : 'vendedor', ambiente }
     }
     async function iniciar(idAnuncio, comprador) {
         const pedido = await db.transaction(async trx => {
             const a = await trx('tbl_anuncio').where({ id: idAnuncio }).forUpdate().first()
             if (!a || a.status !== 'ativo') falhar(404, 'Anúncio indisponível.')
+            if (ambiente === 'producao' && a.demonstracao) falhar(409, 'Anúncio de demonstração não pode receber pagamentos.')
             if (Number(a.id_usuario) === Number(comprador)) falhar(403, 'Você não pode comprar seu próprio anúncio.')
             const modalidade = await trx('tbl_modalidade').where({ id: a.id_modalidade }).first()
             if (String(modalidade?.nome).toLowerCase() !== 'venda' || !(Number(a.preco) > 0)) falhar(400, 'Anúncio sem preço de venda válido.')
@@ -76,7 +78,7 @@ function criarServico(db, gateway, segredo) {
                 if (pagamentoId) falhar(409, 'Pagamento não corresponde ao pedido.')
                 return p
             }
-            validarPagamento(p, pagamento)
+            validarPagamento(p, pagamento, ambiente)
             if (p.pagamento_id && String(p.pagamento_id) !== String(pagamento.id)) {
                 // Nunca substitui um pagamento já aprovado por outra tentativa.
                 return p

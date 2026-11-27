@@ -13,7 +13,9 @@ const autenticacaoUsuario = require('./middleware/autenticacaoUsuario.js')
 const iaRouter = require('./routes/ia.routes.js')
 const app = express();
 app.disable('x-powered-by')
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1)
 app.use(helmet())
+app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'usuario' }))
 
 const origensPermitidas = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
     .split(',').map((origem) => origem.trim()).filter(Boolean)

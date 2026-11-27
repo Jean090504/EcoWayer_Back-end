@@ -2,6 +2,32 @@ const { test } = require('node:test')
 const assert = require('node:assert/strict')
 const crypto = require('node:crypto')
 const { criarServico, validarPagamento, assinaturaValida } = require('../services/pedidosSite')
+const { disponivel } = require('../routes/pagamento_teste.routes')
+
+test('pagamentos reais exigem ativação, recebedora definida e webhook HTTPS', () => {
+    const nomes = ['NODE_ENV', 'MP_TEST_MODE', 'MP_LIVE_ENABLED', 'MP_SETTLEMENT_MODE', 'MP_ACCESS_TOKEN', 'MP_WEBHOOK_SECRET', 'MP_BACKEND_URL', 'MP_FRONTEND_URL']
+    const anteriores = Object.fromEntries(nomes.map(nome => [nome, process.env[nome]]))
+    try {
+        Object.assign(process.env, {
+            NODE_ENV: 'production', MP_TEST_MODE: '0', MP_LIVE_ENABLED: '1', MP_SETTLEMENT_MODE: '',
+            MP_ACCESS_TOKEN: 'token-falso', MP_WEBHOOK_SECRET: 'assinatura-falsa',
+            MP_BACKEND_URL: 'https://api.example.com', MP_FRONTEND_URL: 'https://app.example.com'
+        })
+        assert.equal(disponivel(), false)
+        process.env.MP_SETTLEMENT_MODE = 'platform'
+        assert.equal(disponivel(), true)
+        process.env.MP_BACKEND_URL = 'http://localhost:3000'
+        assert.equal(disponivel(), false)
+        process.env.NODE_ENV = 'development'
+        process.env.MP_TEST_MODE = '1'
+        assert.equal(disponivel(), true)
+    } finally {
+        for (const nome of nomes) {
+            if (anteriores[nome] === undefined) delete process.env[nome]
+            else process.env[nome] = anteriores[nome]
+        }
+    }
+})
 
 test('pagamento precisa ter referência, valor, moeda e ambiente corretos', () => {
     const pedido = { id: 'pedido', valor: '12.50' }
@@ -10,15 +36,21 @@ test('pagamento precisa ter referência, valor, moeda e ambiente corretos', () =
     for (const invalido of [{ external_reference: 'outro' }, { transaction_amount: 1 }, { currency_id: 'USD' }, { live_mode: true }, { live_mode: undefined }]) {
         assert.throws(() => validarPagamento(pedido, { ...pagamento, ...invalido }), { status: 409 })
     }
+    assert.doesNotThrow(() => validarPagamento(pedido, { ...pagamento, live_mode: true }, 'producao'))
+    assert.throws(() => validarPagamento(pedido, pagamento, 'producao'), { status: 409 })
 })
 
 test('webhook exige assinatura vinculada ao ID consultado e rejeita adulteração', () => {
     const segredo = 'segredo-de-teste'
-    const v1 = crypto.createHmac('sha256', segredo).update('id:123;request-id:req;ts:123456;').digest('hex')
-    const headers = { 'x-request-id': 'req', 'x-signature': `ts=123456,v1=${v1}` }
+    const ts = Math.floor(Date.now() / 1000)
+    const v1 = crypto.createHmac('sha256', segredo).update(`id:123;request-id:req;ts:${ts};`).digest('hex')
+    const headers = { 'x-request-id': 'req', 'x-signature': `ts=${ts},v1=${v1}` }
     const req = { query: { 'data.id': '123' }, get: n => headers[n] }
     assert.equal(assinaturaValida(req, segredo), true)
     assert.equal(assinaturaValida(req, ''), false)
+    headers['x-signature'] = `ts=123456,v1=${v1}`
+    assert.equal(assinaturaValida(req, segredo), false)
+    headers['x-signature'] = `ts=${ts},v1=${v1}`
     req.query['data.id'] = '124'
     assert.equal(assinaturaValida(req, segredo), false)
     headers['x-signature'] = 'ts=1,v1=malformado'

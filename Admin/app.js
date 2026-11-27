@@ -13,7 +13,9 @@ const rateLimit = require('express-rate-limit')
 const autenticacaoAdmin = require('./middleware/autenticacaoAdmin.js')
 const app = express();
 app.disable('x-powered-by')
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1)
 app.use(helmet())
+app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'admin' }))
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-8', legacyHeaders: false }))
 
 const origensPermitidas = (process.env.FRONTEND_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
